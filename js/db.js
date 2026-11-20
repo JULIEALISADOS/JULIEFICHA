@@ -168,9 +168,33 @@ export const getLastFichaByDoc = async (docNumber) => {
     return data && data.length ? data[0] : null;
 };
 
+// Borrar ficha: solo el administrador con 2.o factor (lo exige la base). Primero la fila, luego sus fotos/video.
 export const deleteFichaDb = async (consecutivo) => {
     if (MODO_ABIERTO) return localApi.deleteFichaDb(consecutivo);
-    throw new Error('Las fichas no se borran: se conservan como historia clínica.');
+    const f = await getFichaByConsecutivo(consecutivo);
+    if (!f) return false;
+    let extras = [];
+    try { extras = JSON.parse(f.fotos_extra_urls || '[]'); if (!Array.isArray(extras)) extras = []; } catch (e) { extras = []; }
+    const rutas = [...new Set([f.foto_antes_url, f.foto_despues_url, f.foto_obs_diag_url, f.foto_obs_carac_url, f.foto_obs_cuero_url, f.video_url, ...extras]
+        .filter((v) => typeof v === 'string' && v && v !== 'sin-foto' && v !== '---' && !/^(https?:|data:|blob:)/i.test(v)))];
+    const { data, error } = await sb.rpc('borrar_ficha', { p_consecutivo: String(consecutivo) });
+    falla(error);
+    if (rutas.length) { const r = await sb.storage.from('evidencia-temp').remove(rutas); if (r.error) console.error('archivos de la ficha no borrados', r.error); }
+    return !!data;
+};
+
+// Folio nuevo: despues de escribir la cedula (paso 1 solo avisa si existe; paso 2, al pulsar el boton, trae datos clinicos limitados).
+export const existeFolioAnterior = async (doc) => {
+    if (MODO_ABIERTO) { const f = await localApi.getLastFichaByDoc(doc); return { existe: !!f, total: f ? 1 : 0, ultima: f?.created_at || null }; }
+    const { data, error } = await sb.rpc('existe_folio_anterior', { p_doc: String(doc) });
+    falla(error);
+    return data || { existe: false, total: 0 };
+};
+export const consultarFolioAnterior = async (doc) => {
+    if (MODO_ABIERTO) { const f = await localApi.getLastFichaByDoc(doc); return f ? { ...f, folios: [{ consecutivo: f.consecutivo, fecha: f.created_at, procedimiento: f.procedimiento, sede: f.sede }] } : null; }
+    const { data, error } = await sb.rpc('consultar_folio_anterior', { p_doc: String(doc) });
+    falla(error);
+    return data || null;
 };
 
 // Marca folios como liquidados (solo administracion; no repite los ya liquidados). Devuelve los consecutivos realmente actualizados.
@@ -199,6 +223,13 @@ export const fetchStylistsSecure = async () => {
 export const deleteStylistDb = async (id) => {
     if (MODO_ABIERTO) return localApi.deleteStylistDb(id);
     const { error } = await sb.from('estilistas').update({ activo: false }).eq('id', id); // se desactiva, no se borra
+    falla(error);
+    return true;
+};
+
+export const updateStylistDb = async (id, s) => {
+    if (MODO_ABIERTO) return true;
+    const { error } = await sb.from('estilistas').update({ nombre: s.nombre, telefono: s.telefono || null, email: s.email || null, sede: s.sede || null }).eq('id', id);
     falla(error);
     return true;
 };

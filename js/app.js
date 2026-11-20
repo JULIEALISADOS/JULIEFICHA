@@ -1,4 +1,4 @@
-import { haySesion, cerrarSesion, mfaEstado, mfaInscribir, mfaVerificar, fetchBitacora, fetchSyncDrive, fetchNovedades, fetchNextID, fetchStylists, fetchStylistsSecure, loginUserSecure, verifyAdminPasswordSecure, fetchHistory, getFichaByConsecutivo, deleteFichaDb, deleteStylistDb, addStylistDb, insertFicha, uploadImg, urlsDeFicha, getLastFichaByDoc, updateStylistPassword } from './db.js';
+import { haySesion, cerrarSesion, mfaEstado, mfaInscribir, mfaVerificar, fetchBitacora, fetchSyncDrive, fetchNovedades, fetchNextID, fetchStylists, fetchStylistsSecure, loginUserSecure, verifyAdminPasswordSecure, fetchHistory, getFichaByConsecutivo, deleteFichaDb, deleteStylistDb, addStylistDb, insertFicha, uploadImg, urlsDeFicha, getLastFichaByDoc, updateStylistPassword, updateStylistDb, existeFolioAnterior, consultarFolioAnterior } from './db.js';
 import { initSignatures, clearSignature, getSignaturePads, loadSignaturesFromData, toggleSignatures, destroyPads } from './signature.js';
 import { generatePDF } from './pdf.js';
 import { setSede, setHairType, setChip, previewImage, validateStep, monitorMinorSettings, lockForm, initRealtimeValidation } from './ui.js';
@@ -599,6 +599,9 @@ async function renderHistory(filter = '') {
                     <button onclick="openFichaDetail('${safeId(item.consecutivo)}')" class="btn-view" title="Ver ficha con fotos y video" style="background:#f8f9fa; border:1px solid #ddd; padding:8px 12px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                     </button>
+                    <button onclick="borrarFicha('${safeId(item.consecutivo)}')" class="btn-delete-mini" title="Borrar ficha (solo administrador)" style="background:#fff0f0; border:1px solid #ffcccc; padding:8px 12px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff4d4d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
                     <button onclick="directPDF('${safeId(item.consecutivo)}')" class="btn-pdf-list" style="background:var(--gold-gradient); color:white; border:none; padding:8px 12px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>
                     </button>
@@ -641,9 +644,12 @@ async function renderStylists(filter = '') {
             item.innerHTML = `
                 <div style="flex: 1;">
                     <strong style="display: block; color: var(--gold-dark);">${esc(s.nombre)}</strong>
-                    <small style="display: block; color: var(--text-secondary);">${esc(s.telefono || 'Sin tel')} · ${esc(s.email || 'Sin correo')}</small>
+                    <small style="display: block; color: var(--text-secondary);">${esc(s.sede || 'Sin sede fija')} · ${esc(s.telefono || 'Sin tel')} · ${esc(s.email || 'Sin correo')}</small>
                 </div>
-                <button onclick="deleteStylist('${safeId(s.id)}')" class="btn-delete-mini" style="background: #fff0f0; color: #ff4d4d; border: 1px solid #ffcccc; padding: 8px; border-radius: 8px; cursor: pointer;">
+                <button onclick="editStylist('${safeId(s.id)}')" title="Editar datos" style="background: #f8f9fa; color: #555; border: 1px solid #ddd; padding: 8px; border-radius: 8px; cursor: pointer; margin-right: 6px;">
+                    <i data-lucide="pencil"></i>
+                </button>
+                <button onclick="deleteStylist('${safeId(s.id)}')" title="Quitar estilista" class="btn-delete-mini" style="background: #fff0f0; color: #ff4d4d; border: 1px solid #ffcccc; padding: 8px; border-radius: 8px; cursor: pointer;">
                     <i data-lucide="trash-2"></i>
                 </button>`;
             listEl.appendChild(item);
@@ -668,7 +674,34 @@ window.deleteStylist = async (id) => {
         loadInitialData(); 
     } 
 };
-window.addStylist = async () => { 
+window.borrarFicha = async (consecutivo) => {
+    if (!confirm(`¿BORRAR la ficha #${consecutivo}? Se eliminan también sus fotos y video. Esto NO se puede deshacer.`)) return;
+    if (!confirm(`Confirma otra vez: borrar definitivamente el folio #${consecutivo}.`)) return;
+    try {
+        const ok = await deleteFichaDb(consecutivo);
+        if (!ok) { alert('No se encontró la ficha.'); return; }
+        alert(`Ficha #${consecutivo} borrada.`);
+        renderHistory(searchInput?.value.trim() || '');
+    } catch (e) { console.error(e); alert('No se pudo borrar: ' + (e.message || 'solo el administrador con verificación en 2 pasos puede borrar.')); }
+};
+window.editStylist = async (id) => {
+    try {
+        const lista = await fetchStylistsSecure();
+        const s = lista.find((x) => String(x.id) === String(id));
+        if (!s) { alert('No se encontró la estilista.'); return; }
+        const nombre = prompt('Nombre de la estilista:', s.nombre || ''); if (nombre === null) return;
+        if (!nombre.trim()) { alert('El nombre es obligatorio.'); return; }
+        const telefono = prompt('Teléfono:', s.telefono || ''); if (telefono === null) return;
+        const email = prompt('Correo:', s.email || ''); if (email === null) return;
+        const sede = prompt(`Sede (${SEDES.map((x) => x.nombre).join(' / ')}). Déjala vacía si trabaja en todas:`, s.sede || ''); if (sede === null) return;
+        const sedeOk = sede.trim() ? (SEDES.find((x) => x.nombre.toLowerCase() === sede.trim().toLowerCase())?.nombre) : '';
+        if (sede.trim() && !sedeOk) { alert('Sede no válida. Escribe exactamente una de las sedes.'); return; }
+        await updateStylistDb(id, { nombre: nombre.trim(), telefono: telefono.trim(), email: email.trim(), sede: sedeOk });
+        renderStylists(); loadInitialData();
+        alert('Datos actualizados.');
+    } catch (e) { console.error(e); alert('No se pudo actualizar: ' + (e.message || '')); }
+};
+window.addStylist = async () => {
     const name = stylistInput.value.trim(); 
     const phone = document.getElementById('stylistPhoneInput').value.trim();
     const email = document.getElementById('stylistEmailInput').value.trim();
@@ -766,30 +799,24 @@ if (docInput) {
             return;
         }
         try {
-            const passcode = sessionStorage.getItem('julie_pass_token') || 'none';
-            const lastFicha = await getLastFichaByDoc(val, passcode);
-            window.currentLastFicha = lastFicha; // Guardar para el botón de importar
+            // Solo pregunta si existe; los datos clínicos se traen únicamente cuando se pulsa "Consultar folio anterior".
+            const info = await existeFolioAnterior(val);
+            if (docInput.value.trim() !== val) return; // cambió mientras consultaba
+            window.currentLastFicha = null;
             const area = document.getElementById('clinicalBackgroundArea');
             const badge = document.getElementById('visitTypeBadge');
             const bgText = document.getElementById('backgroundText');
 
-            if (lastFicha) {
+            if (info && info.existe) {
                 if (badge) { badge.innerText = 'FOLIO ADICIONAL'; badge.className = 'visit-badge recurring'; }
                 setChip('tipo_cliente', 'Recurrente');
                 if (area && bgText) {
                     area.classList.remove('hidden');
-                    bgText.innerHTML = `
-                        📌 <strong>ÚLTIMA VISITA:</strong> ${new Date(lastFicha.created_at).toLocaleDateString()}<br>
-                        💇‍♀️ <strong>PROCEDIMIENTO:</strong> ${esc(lastFicha.procedimiento)}<br>
-                        ✨ <strong>LISO:</strong> ${esc(lastFicha.porcentaje_liso || '100%')}<br>
-                        📝 <strong>TÉCNICA:</strong> ${esc(lastFicha.tecnica_utilizada || 'N/A')}<br>
-                        <button type="button" onclick="viewQuickHistory('${safeId(val)}')" style="margin-top:10px; background:var(--gold-dark); color:white; border:none; padding:8px 12px; border-radius:8px; font-size:0.75rem; cursor:pointer; width:100%;">
-                            📂 VER HISTORIAL CLÍNICO Y DETALLES
-                        </button>
-                    `;
+                    bgText.innerHTML = `Esta cédula ya tiene <strong>${Number(info.total) || 1}</strong> folio(s). Último: ${info.ultima ? new Date(info.ultima).toLocaleDateString('es-CO') : ''}.<br>
+                        <button type="button" onclick="consultarFolioPrevio()" style="margin-top:10px; background:var(--gold-dark); color:white; border:none; padding:10px 12px; border-radius:8px; font-size:0.8rem; cursor:pointer; width:100%;">
+                            📂 CONSULTAR FOLIO ANTERIOR
+                        </button>`;
                 }
-                
-                // Mostrar botón de historial en el header
                 const hBtn = document.getElementById('headerHistoryBtn');
                 if (hBtn) hBtn.classList.remove('hidden');
             } else {
@@ -806,9 +833,8 @@ if (docInput) {
 }
 
 // Lógica de Importación de Datos Previos
-const btnLoadPrev = document.getElementById('btnLoadPrevious');
-if (btnLoadPrev) {
-    btnLoadPrev.addEventListener('click', () => {
+{
+    window.traerAntecedentes = () => {
         const data = window.currentLastFicha;
         if (!data) { alert('No hay datos previos detectados para esta cliente.'); return; }
 
@@ -847,43 +873,48 @@ if (btnLoadPrev) {
             diagObs.value = `ÚLTIMO SERVICIO: ${data.procedimiento} (${data.porcentaje_liso || '100%'} liso) realizado el ${new Date(data.created_at).toLocaleDateString()}.` + note;
         }
 
-        alert('✅ Datos básicos y antecedentes importados con éxito. Por favor realiza el nuevo diagnóstico capilar.');
-    });
+        // 4. Alergias (importante que no se pierdan)
+        if (data.alergias) setChip('alergias', data.alergias);
+        const alDesc = form.querySelector('[name="alergias_descripcion"]');
+        if (alDesc && data.alergias_descripcion) alDesc.value = data.alergias_descripcion;
+
+        document.getElementById('quickHistoryModal')?.classList.add('hidden');
+        alert('✅ Datos personales y antecedentes traídos al folio nuevo. Revisa con la clienta y haz el nuevo diagnóstico capilar.');
+    };
 }
 
-window.viewQuickHistory = async (doc) => {
+// Muestra el historial capilar del folio anterior (solo al pulsar el botón) y permite traer los antecedentes al folio nuevo.
+window.consultarFolioPrevio = async () => {
+    const doc = document.getElementById('docNumberInput')?.value.trim();
+    if (!doc || doc.length < 5) { alert('Primero escribe el documento de la clienta.'); return; }
     try {
-        const passcode = sessionStorage.getItem('julie_pass_token') || 'none';
-        const history = await fetchHistory(passcode);
-        const clientFolios = history.filter(f => f.numero_documento === doc);
-        let html = '<div style="max-height:400px; overflow-y:auto; padding:5px;">';
-        
-        if (clientFolios.length === 0) {
-            html += '<p style="text-align:center; padding:20px; color:#666;">No hay folios previos.</p>';
-        }
-
-        clientFolios.forEach(f => {
-            html += `
-                <div style="border: 1px solid #eee; border-radius: 12px; padding:12px; margin-bottom: 10px; background: #fafafa;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
-                        <strong style="color:var(--gold-dark);">Folio #${esc(f.consecutivo)}</strong>
-                        <small style="font-weight: bold; color: #888;">${new Date(f.created_at).toLocaleDateString()}</small>
-                    </div>
-                    <p style="font-size:0.85rem; margin:5px 0;"><strong>Servicio:</strong> ${esc(f.procedimiento)}</p>
-                    <button type="button" onclick="openFichaDetail('${safeId(f.consecutivo)}')" style="margin-top:8px; background:var(--gold-gradient); color:white; border:none; padding:8px 12px; border-radius:8px; font-size:0.75rem; cursor:pointer; width:100%; font-weight: bold;">
-                        📄 VER DETALLE COMPLETO
-                    </button>
-                </div>
-            `;
-        });
-        html += '</div>';
-        
-        const modal = document.getElementById('quickHistoryModal');
+        const d = await consultarFolioAnterior(doc);
+        if (!d) { alert('Esta cédula no tiene folio anterior.'); return; }
+        window.currentLastFicha = d;
+        const fila = (t, v) => v ? `<p style="margin:3px 0; font-size:0.85rem;"><strong>${t}:</strong> ${esc(v)}</p>` : '';
+        const folios = (d.folios || []).map((f) => `<li>#${esc(f.consecutivo)} · ${f.fecha ? new Date(f.fecha).toLocaleDateString('es-CO') : ''} · ${esc(f.procedimiento || '')} · ${esc(f.sede || '')}</li>`).join('');
+        const html = `<div style="max-height:60vh; overflow-y:auto; padding:5px;">
+            <div style="border:1px solid #eee; border-radius:12px; padding:12px; background:#fafafa;">
+                <strong style="color:var(--gold-dark);">Último folio #${esc(d.consecutivo)} · ${new Date(d.created_at).toLocaleDateString('es-CO')}</strong>
+                ${fila('Clienta', d.nombre_completo)}${fila('Servicio', d.procedimiento)}${fila('Técnica', d.tecnica_utilizada)}${fila('Resultado liso', d.porcentaje_liso)}${fila('Estilista', d.estilista_responsable)}
+                <hr style="margin:8px 0; border:0; border-top:1px solid #eee;">
+                ${fila('Patrón de cabello', d.tipo_cabello)}${fila('Longitud', d.longitud)}${fila('Crecimiento', d.estado_crecimiento)}${fila('Medios', d.estado_medios)}${fila('Puntas', d.estado_puntas)}
+                ${fila('Textura', d.textura)}${fila('Elasticidad', d.elasticidad)}${fila('Resistencia', d.resistencia)}${fila('Porosidad', d.porosidad)}${fila('Densidad', d.densidad)}
+                ${fila('Cuero cabelludo', d.piel_cabelluda)}${fila('Caída', d.caida)}${fila('Descamación', d.descamacion)}${fila('Dermatitis', d.dermatitis)}
+                <hr style="margin:8px 0; border:0; border-top:1px solid #eee;">
+                ${fila('Procesos químicos', d.procesos_quimicos)}${fila('Terapias capilares', d.terapias_capilares)}
+                ${fila('Alergias', d.alergias)}${fila('Detalle alergias', d.alergias_descripcion)}
+                ${fila('Observaciones', d.observaciones_diagnostico)}${fila('Obs. características', d.observaciones_caracteristicas)}
+            </div>
+            <p style="margin:10px 0 4px; font-size:0.8rem; font-weight:bold;">Folios de esta cédula:</p><ul style="margin:0; padding-left:18px; font-size:0.8rem;">${folios}</ul>
+            <button type="button" onclick="traerAntecedentes()" style="margin-top:12px; background:var(--gold-gradient); color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer; width:100%;">
+                ⬇️ TRAER DATOS Y ANTECEDENTES AL FOLIO NUEVO
+            </button></div>`;
         document.getElementById('quickHistoryBody').innerHTML = html;
-        modal.classList.remove('hidden');
-        if (window.lucide) window.lucide.createIcons();
-    } catch (e) { console.error(e); alert('Error al cargar historial.'); }
+        document.getElementById('quickHistoryModal').classList.remove('hidden');
+    } catch (e) { console.error(e); alert('No se pudo consultar el folio anterior: ' + (e.message || '')); }
 };
+window.viewQuickHistory = () => window.consultarFolioPrevio();
 
 window.openFichaDetail = async (consecutivo) => {
     try {
