@@ -189,7 +189,7 @@ function applyRoleUI(role) {
     const cardHistory = document.getElementById('cardHistory');
     const cardStylists = document.getElementById('cardStylists');
     const cardControl = document.getElementById('cardControl');
-    if (cardControl) cardControl.style.display = isOwnerOrAdmin ? 'flex' : 'none';
+    if (cardControl) cardControl.style.display = 'none'; // 19-nov: oculto en la beta (la copia a Drive no existe aun)
     const cardClinica = document.getElementById('cardClinica');
     // Beta simple (19-nov): Historia clinica y Garantias ocultas (el historial ya muestra lo esencial). Para volver: cambiar 'none' por la condicion.
     if (cardClinica) cardClinica.style.display = 'none';
@@ -596,7 +596,6 @@ async function renderHistory(filter = '') {
                     </div>
                 </div>
                 <div style="display:flex; gap:8px;">
-                    <button onclick="verHistoriaClinica('${safeId(item.numero_documento)}')" class="btn-view" title="Historia clínica de la clienta" style="background:#fff; border:1px solid var(--border-gold); padding:8px 12px; border-radius:10px; cursor:pointer; font-size:0.75rem; font-weight:700; color:var(--gold-dark);">HISTORIA</button>
                     <button onclick="openFichaDetail('${safeId(item.consecutivo)}')" class="btn-view" title="Ver ficha con fotos y video" style="background:#f8f9fa; border:1px solid #ddd; padding:8px 12px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                     </button>

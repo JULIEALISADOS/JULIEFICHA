@@ -379,7 +379,20 @@ export async function generatePDF() {
             doc.text('  Datos personales tratados conforme a la Ley 1581 de 2012 (Habeas Data).', 20, stampBoxY + 21.5);
         }
 
-        doc.save(`Ficha_${getVal('nombre_completo').replace(/\s+/g, '_')}_${getVal('consecutivo')}.pdf`);
+        const nombreArchivo = `Ficha_${getVal('nombre_completo').replace(/\s+/g, '_')}_${getVal('consecutivo')}.pdf`;
+        // Celular/tablet: doc.save() suele quedar bloqueado. Se comparte o se abre el PDF en otra pestaña.
+        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+            const blob = doc.output('blob');
+            const archivo = new File([blob], nombreArchivo, { type: 'application/pdf' });
+            if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
+                try { await navigator.share({ files: [archivo], title: nombreArchivo }); return; }
+                catch (e) { if (e && e.name === 'AbortError') return; }
+            }
+            const u = URL.createObjectURL(blob);
+            if (!window.open(u, '_blank')) location.href = u;
+            return;
+        }
+        doc.save(nombreArchivo);
     } catch (err) {
         console.error('Error PDF:', err);
         alert('❌ Error al generar PDF: ' + err.message);
