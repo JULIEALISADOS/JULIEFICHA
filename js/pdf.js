@@ -171,8 +171,7 @@ export async function generatePDF() {
         // --- SECCIÓN 4: PROCEDIMIENTO Y GARANTÍA ---
         drawSectionHeader('4. Procedimiento y Garantía');
 
-        h1 = drawField('Embarazo', getVal('embarazo'), col1, 40);
-        h1 = Math.max(h1, drawField('Alergias', getVal('alergias'), col1 + 45, 40));
+        h1 = drawField('Alergias a productos', [getVal('alergias'), getVal('alergias_descripcion')].filter((x) => x && x !== '---').join(': '), col1, 80);
         h2 = drawField('Procedimiento', getVal('procedimiento'), col2, 80);
         y += Math.max(h1, h2);
 
@@ -215,9 +214,7 @@ export async function generatePDF() {
         y += 30;
 
         // --- ADVERTENCIA LEGAL (SI APLICA) ---
-        const emb = getVal('embarazo');
-        const ale = getVal('alergias');
-        if (emb === 'No aporta' || ale === 'No aporta') {
+        if (false) { // datos de embarazo/medicamentos ya no se piden (20-nov)
             checkSpace(20);
             y += 5;
             doc.setFillColor(255, 248, 240); // Fondo naranja muy suave
@@ -266,9 +263,7 @@ export async function generatePDF() {
         drawSectionHeader('6. Consentimiento Informado y Legal');
         
         // Historial Adicional
-        h1 = drawField('Químicos Previos', getVal('consent_quimicos'), col1, 80);
-        h2 = drawField('Tratamiento Médico', getVal('consent_meds'), col2, 80);
-        y += Math.max(h1, h2);
+        y += drawField('Químicos Previos', getVal('consent_quimicos'), col1, 80);
         
         y += 5;
         doc.setFillColor(252, 252, 252);

@@ -287,11 +287,7 @@
                     <h2 class="section-title">TU CABELLO Y TU SALUD</h2>
                     <p class="part-hint">Cuéntanos con confianza: esto cuida tu salud y tu cabello. Responde lo que sepas.</p>
                     <div class="form-grid">
-                        <div class="form-group full-width"><label class="required">¿ESTÁS EMBARAZADA?</label><input type="hidden" name="embarazo" id="embarazoInput" required><div class="chip-group"><button type="button" class="chip" onclick="setChip('embarazo', 'Si')">Si</button><button type="button" class="chip" onclick="setChip('embarazo', 'No')">No</button></div></div>
-                        <div class="form-group full-width"><label class="required">¿TIENES ALERGIAS?</label><input type="hidden" name="alergias" id="alergiasInput" required><div class="chip-group"><button type="button" class="chip" onclick="setChip('alergias', 'Si')">Si</button><button type="button" class="chip" onclick="setChip('alergias', 'No')">No</button></div></div>
-                        <div class="form-group full-width hidden" id="alergiasDescGroup"><label>¿A QUÉ ERES ALÉRGICA?</label><textarea name="alergias_descripcion" rows="2" placeholder="Ej.: Tintes, amoníaco, fragancias..."></textarea></div>
                         <div class="form-group full-width"><label class="required">¿TE HAS HECHO TRATAMIENTOS QUÍMICOS ANTES?</label><input type="hidden" name="consent_quimicos" id="consentQuimicosInput" required><div class="chip-group"><button type="button" class="chip" onclick="setChip('consentQuimicos', 'Si')">Si</button><button type="button" class="chip" onclick="setChip('consentQuimicos', 'No')">No</button></div></div>
-                        <div class="form-group full-width"><label class="required">¿ESTÁS BAJO TRATAMIENTO MÉDICO O TOMAS MEDICAMENTOS?</label><input type="hidden" name="consent_meds" id="consentMedsInput" required><div class="chip-group"><button type="button" class="chip" onclick="setChip('consentMeds', 'Si')">Si</button><button type="button" class="chip" onclick="setChip('consentMeds', 'No')">No</button></div></div>
                         <div class="form-group full-width"><label class="required">¿QUÉ PROCESOS QUÍMICOS TE HAS HECHO Y HACE CUÁNTO?</label><textarea name="procesos_quimicos" rows="3" required placeholder="Ej.: Ninguno / Tinte hace 3 meses / Alisado hace 1 año"></textarea></div>
                         <div class="form-group full-width"><label class="required">¿QUÉ TERAPIAS O TRATAMIENTOS PARA EL CABELLO TE HAS HECHO?</label><textarea name="terapias_capilares" rows="3" required placeholder="Ej.: Ninguna / Hidratación hace 2 meses / Keratina"></textarea></div>
                         <div class="form-group full-width"><label class="required">¿CADA CUÁNTO LAVAS TU CABELLO?</label><input type="hidden" name="frecuencia_lavado" id="lavadoInput" required><div class="chip-group">
@@ -302,6 +298,8 @@
                             <button type="button" class="chip" onclick="setChip('lavado', 'Cada 6-7 días')">Cada 6-7 días</button>
                             <button type="button" class="chip" onclick="setChip('lavado', 'Más de 7 días')">Más de 7 días</button>
                         </div></div>
+                        <div class="form-group full-width"><label class="required">¿TIENES ALERGIAS CONOCIDAS A PRODUCTOS CAPILARES O COSMÉTICOS?</label><input type="hidden" name="alergias" id="alergiasInput" required><div class="chip-group"><button type="button" class="chip" onclick="setChip('alergias', 'Si')">Si</button><button type="button" class="chip" onclick="setChip('alergias', 'No')">No</button></div></div>
+                        <div class="form-group full-width hidden" id="alergiasDescGroup"><label>¿A QUÉ PRODUCTOS?</label><textarea name="alergias_descripcion" rows="2" placeholder="Ej.: Tintes, amoníaco, fragancias, cremas..."></textarea></div>
                     </div>
                 </section>
 
@@ -681,7 +679,7 @@
         </div>
     </div>
 
-    <script type="module" src="js/app.js?v=9.8"></script>
+    <script type="module" src="js/app.js?v=9.9"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

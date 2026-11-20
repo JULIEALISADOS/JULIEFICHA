@@ -387,9 +387,7 @@ function pintarResumenFirma(venceTxt) {
     const sel = document.getElementById('responsableInput');
     const estilista = sel && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex].text : '';
     const alertas = [];
-    if (v('embarazoInput') === 'Si') alertas.push('Embarazo');
-    if (v('alergiasInput') === 'Si') alertas.push('Alergias' + (document.querySelector('[name="alergias_descripcion"]')?.value ? ': ' + document.querySelector('[name="alergias_descripcion"]').value : ''));
-    if (v('consentMedsInput') === 'Si') alertas.push('Tratamiento médico o medicamentos');
+    if (v('alergiasInput') === 'Si') alertas.push('Alergias a productos' +(document.querySelector('[name="alergias_descripcion"]')?.value ? ': ' + document.querySelector('[name="alergias_descripcion"]').value : ''));
     const fila = (k, val) => `<div class="rf-fila"><span>${k}</span><strong>${esc(val || '—')}</strong></div>`;
     box.innerHTML =
         fila('Clienta', document.querySelector('[name="nombre_completo"]')?.value) +
@@ -933,7 +931,7 @@ window.openFichaDetail = async (consecutivo) => {
                     <p><strong>Estilista:</strong> ${esc(data.estilista_responsable)}</p>
                     <p><strong>Sede:</strong> ${esc(data.sede)}</p>
                     <p><strong>Clienta:</strong> ${esc(data.nombre_completo)} · ${esc(data.telefono || '')}</p>
-                    <p><strong>Embarazo:</strong> ${esc(data.embarazo || '—')} · <strong>Alergias:</strong> ${esc(data.alergias || '—')}${data.alergias_descripcion ? ': ' + esc(data.alergias_descripcion) : ''}</p>
+                    <p><strong>Alergias a productos:</strong> ${esc(data.alergias || '—')}${data.alergias_descripcion ? ': ' + esc(data.alergias_descripcion) : ''}</p>
                 </div>
                 
                 <div style="padding: 10px;">
@@ -1107,14 +1105,6 @@ if (saveBtn) saveBtn.addEventListener('click', async () => {
         return;
     }
 
-    // --- VALIDACIÓN LEGAL DATOS SENSIBLES ---
-    const embarazo = document.getElementById('embarazoInput')?.value;
-    const alergias = document.getElementById('alergiasInput')?.value;
-    
-    if (embarazo === 'No aporta' || alergias === 'No aporta') {
-        const legalWarning = `📝 NOTA IMPORTANTE DE SEGURIDAD:\n\nEn Julie Alisados, tu salud y seguridad son nuestra prioridad. De acuerdo con nuestra política de privacidad, el suministro de datos sobre salud (embarazo o alergias) es totalmente opcional.\n\nSin embargo, para garantizar un procedimiento 100% seguro y resultados óptimos, te informamos que la falta de esta información o el aporte de datos incompletos podría limitar la aplicación de garantías o la aplicabilidad del servicio por tu bienestar.\n\n¿Deseas continuar con el proceso bajo estas condiciones de seguridad?`;
-        if (!confirm(legalWarning)) return;
-    }
 
     // Los archivos pesados no caben en el plan actual (50 MB por archivo): avisar ANTES de subir nada
     const LIMITE_MB = 50;
