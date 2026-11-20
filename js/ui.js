@@ -68,6 +68,12 @@ export function validateStep(idx, steps) {
         const type = document.getElementById('docType').value;
         if (type === 'TI' && age >= 18) { alert('⚠️ Tarjeta de Identidad es solo para menores de 18 años.'); return false; }
         if (type === 'CC' && (age < 18 || age > 99)) { alert('⚠️ Cédula es solo para mayores de 18 años (18-99).'); return false; }
+        const motivo = document.getElementById('motivoVisitaGroup');
+        if (motivo && !motivo.classList.contains('hidden') && !document.getElementById('motivo_visitaInput')?.value) {
+            motivo.classList.add('error');
+            alert('⚠️ Es clienta recurrente: marca si es GARANTÍA o NUEVO PROCEDIMIENTO.');
+            return false;
+        }
     }
 
     fields.forEach(f => {

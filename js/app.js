@@ -788,96 +788,106 @@ window.directPDF = async (consecutivo) => {
 // ======================== DOCUMENT LOOKUP ========================
 const docInput = document.getElementById('docNumberInput');
 if (docInput) {
+    // Campos que la app llenó sola (para poder deshacerlos si cambian la cédula)
+    let autollenados = [];
+    const limpiarAutollenado = () => {
+        autollenados.forEach(({ el, v }) => { if (el.value === v) el.value = ''; });
+        autollenados = [];
+    };
+    const mostrarMotivo = (ver) => {
+        const g = document.getElementById('motivoVisitaGroup');
+        if (g) g.classList.toggle('hidden', !ver);
+        if (!ver) { const m = document.getElementById('motivo_visitaInput'); if (m) m.value = ''; document.querySelectorAll('#motivoVisitaGroup .chip').forEach((c) => c.classList.remove('active')); }
+    };
+    let ultimaCedula = '';
     const performCheck = async () => {
         const val = docInput.value.trim();
-        if (val.length < 5) {
-            const badge = document.getElementById('visitTypeBadge');
+        if (val === ultimaCedula) return;
+        const badge = document.getElementById('visitTypeBadge');
+        const area = document.getElementById('clinicalBackgroundArea');
+        const bgText = document.getElementById('backgroundText');
+        const hBtn = document.getElementById('headerHistoryBtn');
+        const comoNueva = () => {
             if (badge) { badge.innerText = 'NUEVA CLIENTE'; badge.className = 'visit-badge'; }
+            setChip('tipo_cliente', 'Nueva');
+            if (area) area.classList.add('hidden');
+            if (hBtn) hBtn.classList.add('hidden');
+            mostrarMotivo(false);
             window.currentLastFicha = null;
-            return;
-        }
+        };
+        if (val.length < 5) { ultimaCedula = ''; limpiarAutollenado(); comoNueva(); return; }
         try {
-            // Solo pregunta si existe; los datos clínicos se traen únicamente cuando se pulsa "Consultar folio anterior".
             const info = await existeFolioAnterior(val);
             if (docInput.value.trim() !== val) return; // cambió mientras consultaba
-            window.currentLastFicha = null;
-            const area = document.getElementById('clinicalBackgroundArea');
-            const badge = document.getElementById('visitTypeBadge');
-            const bgText = document.getElementById('backgroundText');
-
-            if (info && info.existe) {
-                if (badge) { badge.innerText = 'FOLIO ADICIONAL'; badge.className = 'visit-badge recurring'; }
-                setChip('tipo_cliente', 'Recurrente');
-                if (area && bgText) {
-                    area.classList.remove('hidden');
-                    bgText.innerHTML = `Esta cédula ya tiene <strong>${Number(info.total) || 1}</strong> folio(s). Último: ${info.ultima ? new Date(info.ultima).toLocaleDateString('es-CO') : ''}.<br>
-                        <button type="button" onclick="consultarFolioPrevio()" style="margin-top:10px; background:var(--gold-dark); color:white; border:none; padding:10px 12px; border-radius:8px; font-size:0.8rem; cursor:pointer; width:100%;">
-                            📂 CONSULTAR FOLIO ANTERIOR
-                        </button>`;
-                }
-                const hBtn = document.getElementById('headerHistoryBtn');
-                if (hBtn) hBtn.classList.remove('hidden');
-            } else {
-                if (badge) { badge.innerText = 'NUEVA CLIENTE'; badge.className = 'visit-badge'; }
-                setChip('tipo_cliente', 'Nueva');
-                if (area) area.classList.add('hidden');
-                const hBtn = document.getElementById('headerHistoryBtn');
-                if (hBtn) hBtn.classList.add('hidden');
+            ultimaCedula = val;
+            limpiarAutollenado();
+            if (!(info && info.existe)) { comoNueva(); return; }
+            const d = await consultarFolioAnterior(val);
+            if (docInput.value.trim() !== val || !d) { if (!d) comoNueva(); return; }
+            window.currentLastFicha = d;
+            if (badge) { badge.innerText = 'CLIENTE RECURRENTE'; badge.className = 'visit-badge recurring'; }
+            setChip('tipo_cliente', 'Recurrente');
+            window.traerAntecedentes(true);
+            mostrarMotivo(true);
+            if (area && bgText) {
+                area.classList.remove('hidden');
+                bgText.innerHTML = `Ya es clienta: <strong>${Number(info.total) || 1}</strong> folio(s). Último: folio #${esc(d.consecutivo)} del ${new Date(d.created_at).toLocaleDateString('es-CO')} (${esc(d.procedimiento || 'sin servicio')}).<br>
+                    Sus datos y antecedentes se llenaron solos: revísalos con ella.<br>
+                    <button type="button" onclick="consultarFolioPrevio()" style="margin-top:10px; background:var(--gold-dark); color:white; border:none; padding:10px 12px; border-radius:8px; font-size:0.8rem; cursor:pointer; width:100%;">
+                        📂 VER HISTORIAL DEL CABELLO
+                    </button>`;
             }
+            if (hBtn) hBtn.classList.remove('hidden');
         } catch (e) { console.error('Recurrence check error:', e); }
     };
 
-    docInput.addEventListener('input', debounce(performCheck, 600));
-}
+    // Se consulta al terminar de escribir la cédula (salir del campo o Enter), no con cada número: así no trae datos de otra persona por una cédula a medias.
+    docInput.addEventListener('change', performCheck);
+    docInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); performCheck(); } });
+    docInput.addEventListener('input', debounce(() => { if (docInput.value.trim().length < 5) performCheck(); }, 400));
 
-// Lógica de Importación de Datos Previos
-{
-    window.traerAntecedentes = () => {
-        const data = window.currentLastFicha;
-        if (!data) { alert('No hay datos previos detectados para esta cliente.'); return; }
-
-        // 1. Datos Básicos
-        const fields = {
-            'nombre_completo': data.nombre_completo,
-            'telefono': data.telefono,
-            'email': data.email,
-            'edad': data.edad
-        };
-
-        for (let key in fields) {
-            const el = form.querySelector(`[name="${key}"]`);
-            if (el) el.value = fields[key] || '';
+    // Garantía o procedimiento nuevo (solo clienta recurrente)
+    window.setMotivoVisita = (m) => {
+        setChip('motivo_visita', m);
+        setChip('tipo_cliente', 'Recurrente - ' + m);
+        const d = window.currentLastFicha;
+        const obs = form.querySelector('[name="observaciones_diagnostico"]');
+        if (obs && d) {
+            const marca = `GARANTÍA DEL FOLIO #${d.consecutivo}. `;
+            obs.value = obs.value.replace(marca, '');
+            if (m === 'Garantía') obs.value = marca + obs.value;
         }
-        
-        if (data.genero) setChip('genero', data.genero);
+    };
+
+    // Lógica de Importación de Datos Previos (silencioso = automático al poner la cédula; solo llena campos vacíos)
+    window.traerAntecedentes = (silencioso = false) => {
+        const data = window.currentLastFicha;
+        if (!data) { if (!silencioso) alert('No hay datos previos detectados para esta cliente.'); return; }
+        const poner = (name, v) => {
+            const el = form.querySelector(`[name="${name}"]`);
+            if (!el || !v || el.value.trim()) return;
+            el.value = v;
+            autollenados.push({ el, v });
+        };
+        poner('nombre_completo', data.nombre_completo);
+        poner('telefono', data.telefono);
+        poner('email', data.email);
+        poner('edad', data.edad);
+        if (data.genero && !document.getElementById('generoInput')?.value) setChip('genero', data.genero);
         monitorMinorSettings();
 
-        // 2. Antecedentes Significativos (Procesos y Terapias)
-        const note = `\n\n[DATO IMPORTADO DE FOLIO #${data.consecutivo} del ${new Date(data.created_at).toLocaleDateString()}]`;
-        
-        const procInput = form.querySelector('[name="procesos_quimicos"]');
-        if (procInput && data.procesos_quimicos) {
-            procInput.value = data.procesos_quimicos + note;
+        const note = `\n[Del folio #${data.consecutivo} del ${new Date(data.created_at).toLocaleDateString('es-CO')}]`;
+        if (data.procesos_quimicos) poner('procesos_quimicos', data.procesos_quimicos + note);
+        if (data.terapias_capilares) poner('terapias_capilares', data.terapias_capilares + note);
+        poner('observaciones_diagnostico', `ÚLTIMO SERVICIO: ${data.procedimiento || '—'} (${data.porcentaje_liso || '—'} liso) el ${new Date(data.created_at).toLocaleDateString('es-CO')}.`);
+
+        if (data.alergias && !document.getElementById('alergiasInput')?.value) setChip('alergias', data.alergias);
+        poner('alergias_descripcion', data.alergias_descripcion);
+
+        if (!silencioso) {
+            document.getElementById('quickHistoryModal')?.classList.add('hidden');
+            alert('✅ Datos personales y antecedentes traídos al folio nuevo. Revisa con la clienta y haz el nuevo diagnóstico capilar.');
         }
-
-        const terInput = form.querySelector('[name="terapias_capilares"]');
-        if (terInput && data.terapias_capilares) {
-            terInput.value = data.terapias_capilares + note;
-        }
-
-        // 3. Notas del último procedimiento en Diagnóstico
-        const diagObs = form.querySelector('[name="observaciones_diagnostico"]');
-        if (diagObs) {
-            diagObs.value = `ÚLTIMO SERVICIO: ${data.procedimiento} (${data.porcentaje_liso || '100%'} liso) realizado el ${new Date(data.created_at).toLocaleDateString()}.` + note;
-        }
-
-        // 4. Alergias (importante que no se pierdan)
-        if (data.alergias) setChip('alergias', data.alergias);
-        const alDesc = form.querySelector('[name="alergias_descripcion"]');
-        if (alDesc && data.alergias_descripcion) alDesc.value = data.alergias_descripcion;
-
-        document.getElementById('quickHistoryModal')?.classList.add('hidden');
-        alert('✅ Datos personales y antecedentes traídos al folio nuevo. Revisa con la clienta y haz el nuevo diagnóstico capilar.');
     };
 }
 
@@ -929,7 +939,7 @@ window.openFichaDetail = async (consecutivo) => {
                     <h4 style="color: var(--gold-dark); margin-bottom: 5px; border-bottom: 1px solid var(--gold-light);">DATOS GENERALES</h4>
                     <p><strong>Fecha:</strong> ${esc(data.fecha_diligenciamiento)}</p>
                     <p><strong>Estilista:</strong> ${esc(data.estilista_responsable)}</p>
-                    <p><strong>Sede:</strong> ${esc(data.sede)}</p>
+                    <p><strong>Sede:</strong> ${esc(data.sede)} · <strong>Visita:</strong> ${esc(data.tipo_cliente || '—')}</p>
                     <p><strong>Clienta:</strong> ${esc(data.nombre_completo)} · ${esc(data.telefono || '')}</p>
                     <p><strong>Alergias a productos:</strong> ${esc(data.alergias || '—')}${data.alergias_descripcion ? ': ' + esc(data.alergias_descripcion) : ''}</p>
                 </div>

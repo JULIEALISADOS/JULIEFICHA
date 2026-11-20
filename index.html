@@ -207,18 +207,8 @@
                             <div class="folio-info-badge">FOLIO: <span id="currentFolioNum">#---</span></div>
                             <div id="visitTypeBadge" class="visit-badge">NUEVA CLIENTE</div>
                         </div>
-                        <div class="form-group full-width">
-                            <label>TIPO DE CLIENTE (OPCIONAL)</label>
-                            <input type="hidden" name="tipo_cliente" id="tipo_clienteInput">
-                            <div class="chip-group">
-                                <button type="button" class="chip" onclick="setChip('tipo_cliente', 'Nueva')">NUEVA CLIENTE</button>
-                                <button type="button" class="chip" onclick="setChip('tipo_cliente', 'Recurrente')">CLIENTE RECURRENTE</button>
-                            </div>
-                        </div>
-                        <div id="clinicalBackgroundArea" class="form-group full-width hidden clinical-bg-card">
-                            <h4 style="color: var(--gold-dark); margin-bottom: 5px;"><i data-lucide="user-check"></i> CLIENTA CON FOLIO ANTERIOR</h4>
-                            <p id="backgroundText" style="font-size:0.85rem; margin-bottom:10px;"></p>
-                        </div>
+                        <!-- Nueva / Recurrente lo marca la app sola al poner la cédula -->
+                        <input type="hidden" name="tipo_cliente" id="tipo_clienteInput">
                         <div class="form-group">
                             <label class="required">TIPO DOCUMENTO</label>
                             <select name="tipo_documento" id="docType" required>
@@ -230,7 +220,19 @@
                         </div>
                         <div class="form-group">
                             <label class="required">NUMERO DE DOCUMENTO</label>
-                            <input type="number" name="numero_documento" id="docNumberInput" required>
+                            <input type="number" name="numero_documento" id="docNumberInput" required enterkeyhint="next">
+                        </div>
+                        <div id="clinicalBackgroundArea" class="form-group full-width hidden clinical-bg-card">
+                            <h4 style="color: var(--gold-dark); margin-bottom: 5px;"><i data-lucide="user-check"></i> CLIENTE RECURRENTE</h4>
+                            <p id="backgroundText" style="font-size:0.85rem; margin-bottom:10px;"></p>
+                        </div>
+                        <div id="motivoVisitaGroup" class="form-group full-width hidden">
+                            <label class="required">¿ES GARANTÍA O NUEVO PROCEDIMIENTO?</label>
+                            <input type="hidden" id="motivo_visitaInput">
+                            <div class="chip-group">
+                                <button type="button" class="chip" onclick="setMotivoVisita('Garantía')">Garantía</button>
+                                <button type="button" class="chip" onclick="setMotivoVisita('Nuevo procedimiento')">Nuevo procedimiento</button>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label class="required">EDAD (AÑOS)</label>
@@ -679,7 +681,7 @@
         </div>
     </div>
 
-    <script type="module" src="js/app.js?v=9.9"></script>
+    <script type="module" src="js/app.js?v=10.0"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
