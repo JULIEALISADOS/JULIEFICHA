@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+    <!-- Seguridad (24-nov): la pagina solo puede hablar con Supabase y cargar codigo de las 3 CDN fijadas con huella (SRI) -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://hzvwruiybynkifqsekkp.supabase.co; media-src 'self' blob: https://hzvwruiybynkifqsekkp.supabase.co; connect-src 'self' https://hzvwruiybynkifqsekkp.supabase.co wss://hzvwruiybynkifqsekkp.supabase.co https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta name="referrer" content="no-referrer">
     <title>JulieApp - Alisados</title>
     
     <!-- PWA Primary Meta Tags -->
@@ -209,7 +212,7 @@
                         </div>
                         <!-- Nueva / Recurrente lo marca la app sola al poner la cédula -->
                         <input type="hidden" name="tipo_cliente" id="tipo_clienteInput">
-                        <div class="form-group">
+                        <div class="form-group full-width">
                             <label class="required">TIPO DOCUMENTO</label>
                             <select name="tipo_documento" id="docType" required>
                                 <option value="CC">Cédula de Ciudadanía</option>
@@ -218,7 +221,7 @@
                                 <option value="PP">Pasaporte</option>
                             </select>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group full-width">
                             <label class="required">NUMERO DE DOCUMENTO</label>
                             <input type="number" name="numero_documento" id="docNumberInput" required enterkeyhint="next">
                         </div>
@@ -234,21 +237,9 @@
                                 <button type="button" class="chip" onclick="setMotivoVisita('Nuevo procedimiento')">Nuevo procedimiento</button>
                             </div>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group full-width">
                             <label class="required">EDAD (AÑOS)</label>
                             <input type="number" name="edad" id="edadInput" required min="1" max="110">
-                        </div>
-                        <div class="form-group">
-                            <label class="required">TELEFONO</label>
-                            <input type="tel" name="telefono" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="required">CORREO ELECTRÓNICO</label>
-                            <input type="email" name="email" placeholder="ejemplo@correo.com" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="required">FECHA DILIGENCIAMIENTO</label>
-                            <input type="text" name="fecha_diligenciamiento" id="currentDateTime" readonly>
                         </div>
                         <div class="form-group full-width">
                             <label>GÉNERO (OPCIONAL)</label>
@@ -268,6 +259,14 @@
                             <input type="text" name="nombre_completo" required>
                         </div>
                         <div class="form-group full-width">
+                            <label class="required">TELEFONO</label>
+                            <input type="tel" name="telefono" required>
+                        </div>
+                        <div class="form-group full-width">
+                            <label class="required">CORREO ELECTRÓNICO</label>
+                            <input type="email" name="email" placeholder="ejemplo@correo.com" required>
+                        </div>
+                        <div class="form-group full-width">
                             <label>¿CÓMO NOS CONOCISTE? (OPCIONAL)</label>
                             <input type="hidden" name="como_nos_conociste" id="como_nos_conocisteInput">
                             <div class="chip-group-mini">
@@ -280,38 +279,20 @@
                                 <button type="button" class="chip-sm" onclick="setChip('como_nos_conociste', 'Otro')">Otro</button>
                             </div>
                         </div>
+                        <div class="form-group full-width">
+                            <label class="required">FECHA DILIGENCIAMIENTO</label>
+                            <input type="text" name="fecha_diligenciamiento" id="currentDateTime" readonly>
+                        </div>
 
                     </div>
                 </section>
 
                 <section class="step" id="step2">
-                    <div class="part-pill part-clienta">PARTE 1 · CLIENTA</div>
-                    <h2 class="section-title">TU CABELLO Y TU SALUD</h2>
-                    <p class="part-hint">Cuéntanos con confianza: esto cuida tu salud y tu cabello. Responde lo que sepas.</p>
-                    <div class="form-grid">
-                        <div class="form-group full-width"><label class="required">¿TE HAS HECHO TRATAMIENTOS QUÍMICOS ANTES?</label><input type="hidden" name="consent_quimicos" id="consentQuimicosInput" required><div class="chip-group"><button type="button" class="chip" onclick="setChip('consentQuimicos', 'Si')">Si</button><button type="button" class="chip" onclick="setChip('consentQuimicos', 'No')">No</button></div></div>
-                        <div class="form-group full-width"><label class="required">¿QUÉ PROCESOS QUÍMICOS TE HAS HECHO Y HACE CUÁNTO?</label><textarea name="procesos_quimicos" rows="3" required placeholder="Ej.: Ninguno / Tinte hace 3 meses / Alisado hace 1 año"></textarea></div>
-                        <div class="form-group full-width"><label class="required">¿QUÉ TERAPIAS O TRATAMIENTOS PARA EL CABELLO TE HAS HECHO?</label><textarea name="terapias_capilares" rows="3" required placeholder="Ej.: Ninguna / Hidratación hace 2 meses / Keratina"></textarea></div>
-                        <div class="form-group full-width"><label class="required">¿CADA CUÁNTO LAVAS TU CABELLO?</label><input type="hidden" name="frecuencia_lavado" id="lavadoInput" required><div class="chip-group">
-                            <button type="button" class="chip" onclick="setChip('lavado', 'A diario')">A diario</button>
-                            <button type="button" class="chip" onclick="setChip('lavado', 'Día de por medio')">Día de por medio</button>
-                            <button type="button" class="chip" onclick="setChip('lavado', 'Cada 2-3 días')">Cada 2-3 días</button>
-                            <button type="button" class="chip" onclick="setChip('lavado', 'Cada 4-5 días')">Cada 4-5 días</button>
-                            <button type="button" class="chip" onclick="setChip('lavado', 'Cada 6-7 días')">Cada 6-7 días</button>
-                            <button type="button" class="chip" onclick="setChip('lavado', 'Más de 7 días')">Más de 7 días</button>
-                        </div></div>
-                        <div class="form-group full-width"><label class="required">¿TIENES ALERGIAS CONOCIDAS A PRODUCTOS CAPILARES O COSMÉTICOS?</label><input type="hidden" name="alergias" id="alergiasInput" required><div class="chip-group"><button type="button" class="chip" onclick="setChip('alergias', 'Si')">Si</button><button type="button" class="chip" onclick="setChip('alergias', 'No')">No</button></div></div>
-                        <div class="form-group full-width hidden" id="alergiasDescGroup"><label>¿A QUÉ PRODUCTOS?</label><textarea name="alergias_descripcion" rows="2" placeholder="Ej.: Tintes, amoníaco, fragancias, cremas..."></textarea></div>
-                    </div>
-                </section>
-
-                <section class="step" id="step3">
                     <div class="part-pill part-estilista">PARTE 2 · ESTILISTA</div>
                     <h2 class="section-title">DIAGNÓSTICO TÉCNICO</h2>
                     <div class="form-grid">
-                        <div class="form-group full-width"><label class="required">ESTILISTA RESPONSABLE</label><select name="estilista_responsable" id="responsableInput" required></select></div>
                         <div class="form-group full-width">
-                            <h3 class="subsection-title">PATRÓN DE RIZO</h3>
+                            <h3 class="subsection-title">2.1 PATRÓN DE RIZO</h3>
                             <div class="hair-guide"><img src="guia_cabello_tecnico_completa_julie_es_1774539016850.png" class="guide-img"></div>
                             <input type="hidden" name="tipo_cabello" id="hairTypeInput" required>
                             <div class="hair-type-categories">
@@ -333,10 +314,12 @@
                     </div>
                 </section>
 
-                <section class="step" id="step4">
+                <section class="step" id="step3">
                     <div class="part-pill part-estilista">PARTE 2 · ESTILISTA</div>
-                    <h2 class="section-title">CARACTERÍSTICAS Y CUERO CABELLUDO</h2>
+                    <h2 class="section-title">CARACTERÍSTICAS</h2>
                     <div class="form-grid">
+                        <div class="form-group full-width"><label class="required">PROCESOS QUÍMICOS (CUÁLES Y HACE CUÁNTO)</label><textarea name="procesos_quimicos" rows="3" required placeholder="Ej.: Ninguno / Tinte hace 3 meses / Alisado hace 1 año"></textarea></div>
+                        <div class="form-group full-width"><label class="required">TERAPIAS CAPILARES</label><textarea name="terapias_capilares" rows="3" required placeholder="Ej.: Ninguna / Hidratación hace 2 meses / Keratina"></textarea></div>
                         <div class="form-group full-width"><label class="required">TEXTURA</label><input type="hidden" name="textura" id="texturaInput" required><div class="chip-group"><button type="button" class="chip" onclick="setChip('textura', 'Delgado')">Delgado</button><button type="button" class="chip" onclick="setChip('textura', 'Medio')">Medio</button><button type="button" class="chip" onclick="setChip('textura', 'Grueso')">Grueso</button></div></div>
                         <div class="form-group full-width"><label class="required">ELASTICIDAD</label><input type="hidden" name="elasticidad" id="elasticidadInput" required><div class="chip-group vertical"><button type="button" class="chip descriptive" onclick="setChip('elasticidad', 'Baja')"><strong>Baja</strong> (Se rompe fácilmente al estirar)</button><button type="button" class="chip descriptive" onclick="setChip('elasticidad', 'Media')"><strong>Media</strong> (Se estira y vuelve a su estado natural)</button><button type="button" class="chip descriptive" onclick="setChip('elasticidad', 'Alta')"><strong>Alta</strong> (Se estira mucho sin romperse)</button></div></div>
                         <div class="form-group full-width"><label class="required">RESISTENCIA</label><input type="hidden" name="resistencia" id="resistenciaInput" required><div class="chip-group"><button type="button" class="chip" onclick="setChip('resistencia', 'Alta')">Alta</button><button type="button" class="chip" onclick="setChip('resistencia', 'Media')">Media</button><button type="button" class="chip" onclick="setChip('resistencia', 'Baja')">Baja</button></div></div>
@@ -344,8 +327,22 @@
                         <div class="form-group full-width"><label class="required">DENSIDAD</label><input type="hidden" name="densidad" id="densidadInput" required><div class="chip-group"><button type="button" class="chip" onclick="setChip('densidad', 'Poco')">Poco</button><button type="button" class="chip" onclick="setChip('densidad', 'Regular')">Regular</button><button type="button" class="chip" onclick="setChip('densidad', 'Abundante')">Abundante</button></div></div>
                         <div class="form-group full-width"><label class="required">OBSERVACIONES ADICIONALES</label><textarea name="observaciones_caracteristicas" rows="2" required></textarea></div>
                         <div class="form-group full-width"><label>📸 EVIDENCIA CARACTERÍSTICAS (OPCIONAL)</label><input type="file" id="fotoObsCaracInput" accept="image/*" onchange="previewImage(this, 'previewObsCarac')"><div id="previewObsCarac" class="img-preview-sm"></div></div>
-                        <div class="form-group full-width"><h3 class="subsection-title">CUERO CABELLUDO</h3></div>
+                    </div>
+                </section>
+
+                <section class="step" id="step4">
+                    <div class="part-pill part-estilista">PARTE 2 · ESTILISTA</div>
+                    <h2 class="section-title">CUERO CABELLUDO</h2>
+                    <div class="form-grid">
                         <div class="form-group full-width"><label class="required">PIEL CABELLUDA</label><input type="hidden" name="piel_cabelluda" id="pielInput" required><div class="chip-group"><button type="button" class="chip" onclick="setChip('piel', 'Seco')">Seco</button><button type="button" class="chip" onclick="setChip('piel', 'Equilibrado')">Equilibrado</button><button type="button" class="chip" onclick="setChip('piel', 'Graso')">Graso</button></div></div>
+                        <div class="form-group full-width"><label class="required">FRECUENCIA LAVADO</label><input type="hidden" name="frecuencia_lavado" id="lavadoInput" required><div class="chip-group">
+                            <button type="button" class="chip" onclick="setChip('lavado', 'A diario')">A diario</button>
+                            <button type="button" class="chip" onclick="setChip('lavado', 'Día de por medio')">Día de por medio</button>
+                            <button type="button" class="chip" onclick="setChip('lavado', 'Cada 2-3 días')">Cada 2-3 días</button>
+                            <button type="button" class="chip" onclick="setChip('lavado', 'Cada 4-5 días')">Cada 4-5 días</button>
+                            <button type="button" class="chip" onclick="setChip('lavado', 'Cada 6-7 días')">Cada 6-7 días</button>
+                            <button type="button" class="chip" onclick="setChip('lavado', 'Más de 7 días')">Más de 7 días</button>
+                        </div></div>
                         <div class="form-group full-width"><label class="required">DERMATITIS</label><input type="hidden" name="dermatitis" id="dermatitisInput" required><div class="chip-group"><button type="button" class="chip" onclick="setChip('dermatitis', 'No')">No</button><button type="button" class="chip" onclick="setChip('dermatitis', 'Leve')">Leve</button><button type="button" class="chip" onclick="setChip('dermatitis', 'Severa')">Severa</button></div></div>
                         <div class="form-group full-width"><label class="required">CAÍDA</label><input type="hidden" name="caida" id="caidaInput" required><div class="chip-group"><button type="button" class="chip" onclick="setChip('caida', 'Normal')">Normal</button><button type="button" class="chip" onclick="setChip('caida', 'Leve')">Leve</button><button type="button" class="chip" onclick="setChip('caida', 'Severa')">Severa</button></div></div>
                         <div class="form-group full-width"><label class="required">DESCAMACIÓN</label><input type="hidden" name="descamacion" id="descamacionInput" required><div class="chip-group"><button type="button" class="chip" onclick="setChip('descamacion', 'No')">No</button><button type="button" class="chip" onclick="setChip('descamacion', 'Leve')">Leve</button><button type="button" class="chip" onclick="setChip('descamacion', 'Severa')">Severa</button></div></div>
@@ -356,8 +353,10 @@
 
                 <section class="step" id="step5">
                     <div class="part-pill part-estilista">PARTE 2 · ESTILISTA</div>
-                    <h2 class="section-title">PROCEDIMIENTO Y CIERRE</h2>
+                    <h2 class="section-title">PROCEDIMIENTO</h2>
                     <div class="form-grid">
+                        <div class="form-group full-width"><label class="required">ALERGIAS CONOCIDAS A PRODUCTOS CAPILARES O COSMÉTICOS</label><input type="hidden" name="alergias" id="alergiasInput" required><div class="chip-group"><button type="button" class="chip" onclick="setChip('alergias', 'Si')">Si</button><button type="button" class="chip" onclick="setChip('alergias', 'No')">No</button></div></div>
+                        <div class="form-group full-width hidden" id="alergiasDescGroup"><label>¿A QUÉ PRODUCTOS?</label><textarea name="alergias_descripcion" rows="2" placeholder="Ej.: Tintes, amoníaco, fragancias, cremas..."></textarea></div>
                         <div class="form-group full-width">
                             <label class="required">PROCEDIMIENTO (SELECCIÓN MÚLTIPLE)</label>
                             <input type="hidden" name="procedimiento" id="procedimientoInput" required>
@@ -396,6 +395,7 @@
                             <div class="form-group"><label>MÁS FOTOS (OPCIONAL)</label><input type="file" id="fotoExtraInput" accept="image/*" multiple onchange="previewMultiple(this, 'previewExtra')"><div id="previewExtra" class="img-preview-multi"></div></div>
                             <div class="form-group"><label>VIDEO (OPCIONAL)</label><input type="file" id="videoInput" accept="video/*" onchange="previewVideo(this, 'previewVideo')"><div id="previewVideo" class="img-preview"></div></div>
                         </div>
+                        <div class="form-group full-width"><label class="required">ESTILISTA RESPONSABLE</label><select name="estilista_responsable" id="responsableInput" required></select></div>
                         <div class="signature-section full-width" style="margin-top: 10px; padding:0;">
                         <!-- 3. FIRMA TÉCNICO -->
                         <div class="form-group full-width">
@@ -411,9 +411,13 @@
                     </div>
                 </section>
                 <section class="step" id="step6">
-                    <div class="part-pill part-clienta">PARTE 3 · CLIENTA · REVISA Y FIRMA</div>
-                    <h2 class="section-title">REVISA TU PLAN Y FIRMA</h2>
+                    <div class="part-pill part-clienta">PARTE 3 · CLIENTA · CONSENTIMIENTO Y FIRMA</div>
+                    <h2 class="section-title">CONSENTIMIENTO INFORMADO</h2>
                     <p class="part-hint">Lee con calma lo que acordaste con tu estilista. Tu firma va al final.</p>
+                    <div class="clinical-bg-card" style="margin-bottom:20px;">
+                        <p class="cat-label">INFORMACIÓN REQUERIDA PARA EL CONSENTIMIENTO</p>
+                        <div class="form-group"><label class="required">¿HA RECIBIDO TRATAMIENTOS QUÍMICOS PREVIOS?</label><input type="hidden" name="consent_quimicos" id="consentQuimicosInput" required><div class="chip-group"><button type="button" class="chip" onclick="setChip('consentQuimicos', 'Si')">Si</button><button type="button" class="chip" onclick="setChip('consentQuimicos', 'No')">No</button></div></div>
+                    </div>
 
                     <div class="firma-bloque">
                         <h3 class="fb-titulo"><span>1</span>Tu plan acordado</h3>
@@ -675,13 +679,13 @@
     <!-- Entrega de la tablet: termina la parte de la clienta -->
     <div id="handoffModal" class="modal hidden">
         <div class="modal-content" style="max-width:420px; background:#fff; padding:28px; border-radius:20px; text-align:center;">
-            <h3 id="handoffTitulo" style="font-family:'Playfair Display',serif; margin-bottom:10px;">¡Gracias! Tu parte está lista</h3>
+            <h3 id="handoffTitulo" style="font-family:'Playfair Display',serif; margin-bottom:10px;">¡Gracias! Tus datos están listos</h3>
             <p id="handoffTexto" style="color:var(--text-secondary); font-size:0.95rem; margin-bottom:20px;">Ahora entrega la tablet a tu estilista para continuar con el diagnóstico de tu cabello.</p>
             <button type="button" id="handoffBoton" class="btn-primary" style="width:100%; height:48px; border-radius:999px;" onclick="confirmarEntregaTablet()">Soy la estilista · Continuar</button>
         </div>
     </div>
 
-    <script type="module" src="js/app.js?v=10.0"></script>
+    <script type="module" src="js/app.js?v=10.1"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

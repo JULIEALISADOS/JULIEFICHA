@@ -320,10 +320,10 @@ function updateStep(direction) {
             const { padTech } = getSignaturePads();
             if (!padTech || padTech.isEmpty()) { alert('⚠️ Falta la firma de la estilista.'); return; }
         }
-        // Cambio de manos: paso 2 -> estilista; paso 5 -> vuelve a la clienta para revisar y firmar al final
-        if ((currentStep === 2 || currentStep === 5) && !isLocked && !window.__entregaOk) {
+        // Cambio de manos (orden de la ficha original): paso 1 (datos) -> estilista; paso 5 -> vuelve a la clienta para el consentimiento y la firma
+        if ((currentStep === 1 || currentStep === 5) && !isLocked && !window.__entregaOk) {
             const aClienta = currentStep === 5;
-            document.getElementById('handoffTitulo').textContent = aClienta ? 'Diagnóstico y procedimiento listos' : '¡Gracias! Tu parte está lista';
+            document.getElementById('handoffTitulo').textContent = aClienta ? 'Diagnóstico y procedimiento listos' : '¡Gracias! Tus datos están listos';
             document.getElementById('handoffTexto').textContent = aClienta ? 'Devuelve la tablet a la clienta para que revise su plan, confirme con el código y firme.' : 'Ahora entrega la tablet a tu estilista para continuar con el diagnóstico de tu cabello.';
             document.getElementById('handoffBoton').textContent = aClienta ? 'Soy la clienta · Revisar y firmar' : 'Soy la estilista · Continuar';
             document.getElementById('handoffModal')?.classList.remove('hidden');
