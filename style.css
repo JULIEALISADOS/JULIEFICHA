@@ -565,3 +565,21 @@ td {
     input, select, textarea { max-width: 100%; box-sizing: border-box; }
     .modal-content { max-width: 96vw !important; }
 }
+/* ===== 24-nov: patrón de rizo minimalista (12 mechones dibujados) ===== */
+.rizo-grid { display:flex; flex-direction:column; gap:10px; }
+.rizo-fila { display:flex; flex-direction:column; gap:6px; }
+.rizo-titulo { font-size:0.75rem; font-weight:700; color:var(--gold-dark); letter-spacing:.03em; }
+.rizo-ops { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
+.btn-hair.rizo-btn { display:flex; flex-direction:column; align-items:center; gap:2px; padding:10px 6px 8px; color:#333; min-height:96px; }
+.btn-hair.rizo-btn svg { width:26px; height:52px; }
+.btn-hair.rizo-btn b { font-size:0.95rem; }
+.btn-hair.rizo-btn small { font-size:0.68rem; font-weight:400; color:#777; line-height:1.1; text-align:center; }
+.btn-hair.rizo-btn.active small { color:inherit; }
+
+/* ===== 24-nov: ficha cerrada = firmas congeladas ===== */
+.ficha-cerrada .signature-pad { pointer-events:none; }
+.ficha-cerrada .btn-clear-sig { display:none !important; }
+
+/* ===== 24-nov: técnica Completa / Mixta ===== */
+.tecnica-hint { font-size:0.75rem; color:#777; margin-top:4px; }
+.btn-hair.rizo-btn.active { background:#fff0f7; color:#111; border-color:var(--gold-primary); box-shadow:0 0 0 2px rgba(255,61,154,0.35); }

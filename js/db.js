@@ -131,6 +131,30 @@ export const urlsDeFicha = async (f) => {
     return salida;
 };
 
+// ---------------- Notas adicionales (24-nov): se SUMAN a la ficha cerrada, con su hora; nunca la cambian ----------------
+// Devuelve [{creado_en, autor_nombre, texto, foto_url (ruta), foto (enlace firmado o null)}]
+export const fetchNotas = async (folio) => {
+    if (MODO_ABIERTO) return (localApi.fetchNotas ? localApi.fetchNotas(folio) : []);
+    const { data, error } = await sb.rpc('notas_de_ficha', { p_folio: String(folio) });
+    falla(error);
+    const notas = data || [];
+    const rutas = notas.map((n) => n.foto_url).filter((r) => r && !/^(https?:|data:)/i.test(r));
+    const mapa = {};
+    if (rutas.length) {
+        const { data: s } = await sb.storage.from('evidencia-temp').createSignedUrls(rutas, 3600);
+        (s || []).forEach((r) => { if (r.signedUrl) mapa[r.path] = r.signedUrl; });
+    }
+    return notas.map((n) => ({ ...n, foto: n.foto_url ? (mapa[n.foto_url] || null) : null }));
+};
+export const agregarNota = async (folio, texto, archivo, idCliente, autor) => {
+    if (MODO_ABIERTO) return (localApi.agregarNota ? localApi.agregarNota(folio, texto, archivo, autor) : null);
+    let ruta = null;
+    if (archivo) ruta = await uploadImg(archivo, 'nota_' + Date.now(), idCliente || ('folio-' + folio));
+    const { data, error } = await sb.rpc('agregar_nota_ficha', { p_folio: String(folio), p_texto: texto || '', p_foto: ruta, p_autor_nombre: autor || null });
+    falla(error);
+    return data;
+};
+
 export const insertFicha = async (cleanData) => {
     if (MODO_ABIERTO) return localApi.insertFicha(cleanData);
     const { data, error } = await sb.rpc('crear_ficha', { p: cleanData });

@@ -9,7 +9,7 @@ export function setSede(s) {
 export function setHairType(c, f) {
     document.getElementById('hairTypeInput').value = f;
     document.getElementById('hairTypeSelectedLabel').innerText = f;
-    document.querySelectorAll('.btn-hair').forEach(b => b.classList.toggle('active', b.innerText === c));
+    document.querySelectorAll('.btn-hair').forEach(b => b.classList.toggle('active', (b.dataset.code || b.innerText.trim()) === c));
 }
 
 export function setChip(p, v, multi = false) {
@@ -134,6 +134,9 @@ export function lockForm(lock, form) {
         if (lock) el.classList.add('locked');
         else el.classList.remove('locked');
     });
+
+    // Ficha cerrada: las firmas quedan congeladas (no se puede dibujar encima ni borrar) y no se ven botones de "Borrar"
+    document.body.classList.toggle('ficha-cerrada', !!lock);
 
     // Bloquear botones interactivos: chips, opciones de sede, tipo de cabello y botones de limpiar firma
     document.querySelectorAll('.btn-option, .btn-hair, .chip, .chip-sm, .btn-clear-sig').forEach(b => {

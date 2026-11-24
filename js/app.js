@@ -1,4 +1,4 @@
-import { haySesion, cerrarSesion, mfaEstado, mfaInscribir, mfaVerificar, fetchBitacora, fetchSyncDrive, fetchNovedades, fetchNextID, fetchStylists, fetchStylistsSecure, loginUserSecure, verifyAdminPasswordSecure, fetchHistory, getFichaByConsecutivo, deleteFichaDb, deleteStylistDb, addStylistDb, insertFicha, uploadImg, urlsDeFicha, getLastFichaByDoc, updateStylistPassword, updateStylistDb, existeFolioAnterior, consultarFolioAnterior } from './db.js';
+import { haySesion, cerrarSesion, mfaEstado, mfaInscribir, mfaVerificar, fetchBitacora, fetchSyncDrive, fetchNovedades, fetchNextID, fetchStylists, fetchStylistsSecure, loginUserSecure, verifyAdminPasswordSecure, fetchHistory, getFichaByConsecutivo, deleteFichaDb, deleteStylistDb, addStylistDb, insertFicha, uploadImg, urlsDeFicha, getLastFichaByDoc, updateStylistPassword, updateStylistDb, existeFolioAnterior, consultarFolioAnterior, fetchNotas, agregarNota } from './db.js';
 import { initSignatures, clearSignature, getSignaturePads, loadSignaturesFromData, toggleSignatures, destroyPads } from './signature.js';
 import { generatePDF } from './pdf.js';
 import { setSede, setHairType, setChip, previewImage, validateStep, monitorMinorSettings, lockForm, initRealtimeValidation } from './ui.js';
@@ -197,7 +197,12 @@ function applyRoleUI(role) {
     if (cardGarantias) cardGarantias.style.display = 'none';
     const cardNewFicha = document.getElementById('cardNewFicha');
 
-    if (cardHistory) cardHistory.style.display = isOwnerOrAdmin ? 'flex' : 'none';
+    // 24-nov: la tablet tambien ve "Fichas de hoy" (solo las de HOY de su sede, solo lectura + notas adicionales)
+    if (cardHistory) {
+        cardHistory.style.display = 'flex';
+        const h = cardHistory.querySelector('h3'); if (h) h.textContent = isOwnerOrAdmin ? 'HISTORIAL' : 'FICHAS DE HOY';
+        const p = cardHistory.querySelector('p, span:not(:first-child)'); if (p && !isOwnerOrAdmin) p.textContent = 'Revisar y agregar nota o foto del después';
+    }
     if (cardStylists) cardStylists.style.display = isOwnerOrAdmin ? 'flex' : 'none';
     
     if (cardNewFicha) {
@@ -213,7 +218,7 @@ function applyRoleUI(role) {
     // 3. Barra de Navegación Inferior (Bloquear accesos no autorizados)
     const navHistory = document.getElementById('navItemHistory') || document.querySelector('.nav-item:nth-child(3)');
     const navTeam = document.getElementById('navItemStylists') || document.querySelector('.nav-item:nth-child(4)');
-    if (navHistory) navHistory.style.display = isOwnerOrAdmin ? 'flex' : 'none';
+    if (navHistory) navHistory.style.display = 'flex';
     if (navTeam) navTeam.style.display = isOwnerOrAdmin ? 'flex' : 'none';
 
     // 4. Modal de Éxito: Ocultar PDF en modo Tablet
@@ -230,7 +235,6 @@ function applyRoleUI(role) {
 
     // 5. Blindaje de Secciones: Ocultar módulos administrativos
     if (!isOwnerOrAdmin) {
-        document.getElementById('historySection')?.classList.add('hidden');
         document.getElementById('stylistSection')?.classList.add('hidden');
         document.getElementById('controlSection')?.classList.add('hidden');
         document.getElementById('garantiasSection')?.classList.add('hidden');
@@ -490,11 +494,10 @@ window.switchTab = function (tab) {
         updateStep('init');
         loadInitialData();
     } else if (tab === 'history') {
+        // La tablet ve SOLO las fichas de HOY de su sede (lo controla la base); el administrador ve todas.
         const role = localStorage.getItem('julie_role');
-        if (role !== 'admin') {
-            alert('🔒 Acceso restringido. Solo la Dirección de Julie Alisados puede consultar historiales.');
-            return;
-        }
+        const aviso = document.getElementById('avisoHistorialHoy');
+        if (aviso) aviso.classList.toggle('hidden', role === 'admin');
         historySection?.classList.remove('hidden');
         document.querySelectorAll('.nav-item')[2]?.classList.add('active');
         document.querySelector('.btn-back')?.classList.remove('hidden');
@@ -597,10 +600,10 @@ async function renderHistory(filter = '') {
                     <button onclick="openFichaDetail('${safeId(item.consecutivo)}')" class="btn-view" title="Ver ficha con fotos y video" style="background:#f8f9fa; border:1px solid #ddd; padding:8px 12px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                     </button>
-                    <button onclick="borrarFicha('${safeId(item.consecutivo)}')" class="btn-delete-mini" title="Borrar ficha (solo administrador)" style="background:#fff0f0; border:1px solid #ffcccc; padding:8px 12px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                    <button onclick="borrarFicha('${safeId(item.consecutivo)}')" class="btn-delete-mini${localStorage.getItem('julie_role') === 'admin' ? '' : ' hidden'}" title="Borrar ficha (solo administrador)" style="background:#fff0f0; border:1px solid #ffcccc; padding:8px 12px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff4d4d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                     </button>
-                    <button onclick="directPDF('${safeId(item.consecutivo)}')" class="btn-pdf-list" style="background:var(--gold-gradient); color:white; border:none; padding:8px 12px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                    <button onclick="directPDF('${safeId(item.consecutivo)}')" class="btn-pdf-list${localStorage.getItem('julie_role') === 'admin' ? '' : ' hidden'}" style="background:var(--gold-gradient); color:white; border:none; padding:8px 12px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>
                     </button>
                 </div>`;
@@ -752,7 +755,10 @@ window.viewFicha = async (consecutivo) => {
         // Fotos y video: enlaces firmados temporales (solo el administrador puede pedirlos)
         const m = await urlsDeFicha(data).catch((e) => { console.error('urlsDeFicha', e); return null; });
         const put = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
-        const imgTag = (u, cls = '') => `<img src="${safeUrl(u)}" ${cls ? `class="${cls}"` : 'style="width:100%; border-radius:12px;"'} loading="lazy" onclick="window.open(this.src,'_blank')">`;
+        // crossorigin: la misma foto se reutiliza para el PDF (sin esto el navegador puede negarla desde su caché y el PDF sale sin ella)
+        const imgTag = (u, cls = '') => `<img src="${safeUrl(u)}" crossorigin="anonymous" ${cls ? `class="${cls}"` : 'style="width:100%; border-radius:12px;"'} onclick="window.open(this.src,'_blank')">`;
+        const tec = /^Técnica (Completa|Mixta)/.exec(data.tecnica_utilizada || '');
+        if (tec) setChip('tecnica', tec[1]);
         if (m) {
             if (m.foto_antes_url) put('previewAntes', imgTag(m.foto_antes_url));
             if (m.foto_despues_url) put('previewDespues', imgTag(m.foto_despues_url));
@@ -959,6 +965,7 @@ window.openFichaDetail = async (consecutivo) => {
                 </div>
 
                 <div id="detalleMedia" style="display:grid; gap:10px;"><p style="color:#888;">Cargando fotos y video…</p></div>
+                <div id="detalleNotas"></div>
             </div>
         `;
 
@@ -973,9 +980,56 @@ window.openFichaDetail = async (consecutivo) => {
             box.innerHTML = (fotos ? `<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">${fotos}</div>` : '') + video || '<p style="color:#888;">Esta ficha no tiene fotos ni video.</p>';
         }).catch((e) => { console.error(e); const box = document.getElementById('detalleMedia'); if (box) box.innerHTML = '<p style="color:var(--error);">No se pudieron cargar las fotos (revisa la conexión).</p>'; });
         document.getElementById('fichaDetailModal').classList.remove('hidden');
+        pintarNotas(data);
         if (window.lucide) window.lucide.createIcons();
     } catch (e) { console.error(e); alert('Error al cargar detalle.'); }
 };
+
+// ---------- NOTAS ADICIONALES (24-nov): la ficha cerrada NO se cambia; se le suman notas con su hora y la foto del después ----------
+const horaCol = (iso) => new Date(iso).toLocaleString('es-CO', { timeZone: 'America/Bogota', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+async function pintarNotas(ficha) {
+    const box = document.getElementById('detalleNotas');
+    if (!box) return;
+    box.innerHTML = '<p style="color:#888;">Cargando notas…</p>';
+    let notas = [];
+    try { notas = await fetchNotas(ficha.consecutivo); } catch (e) { console.error('notas', e); }
+    const lista = notas.length ? notas.map((n) => `
+        <div style="border:1px solid #eee; border-radius:10px; padding:10px; background:#fff;">
+            <p style="margin:0 0 4px; font-size:0.72rem; color:var(--gold-dark); font-weight:bold;">${esc(horaCol(n.creado_en))}${n.autor_nombre ? ' · ' + esc(n.autor_nombre) : ''}</p>
+            ${n.texto ? `<p style="margin:0; font-size:0.85rem; white-space:pre-wrap;">${esc(n.texto)}</p>` : ''}
+            ${n.foto ? `<img src="${safeUrl(n.foto)}" crossorigin="anonymous" style="width:100%; border-radius:8px; margin-top:6px; cursor:zoom-in;" onclick="window.open(this.src,'_blank')">` : ''}
+        </div>`).join('') : '<p style="color:#888; font-size:0.85rem;">Sin notas adicionales.</p>';
+    box.innerHTML = `
+        <div style="padding:12px; border-radius:12px; border:1px solid var(--border-gold); background:#fffafd;">
+            <h4 style="color:var(--gold-dark); margin:0 0 4px;">NOTAS ADICIONALES</h4>
+            <p style="font-size:0.72rem; color:#777; margin:0 0 8px;">La ficha original no se modifica. Cada nota queda con su fecha y hora.</p>
+            <div style="display:grid; gap:8px;">${lista}</div>
+            <div style="margin-top:12px; display:grid; gap:8px;">
+                <textarea id="notaTexto" rows="2" maxlength="2000" placeholder="Escribe la nota (ej.: resultado final, recomendaciones). Puedes dictar con el micrófono del teclado."></textarea>
+                <label style="font-size:0.8rem; font-weight:bold;">📸 Foto del después (opcional)</label>
+                <input type="file" id="notaFoto" accept="image/*">
+                <button type="button" id="btnAgregarNota" style="background:var(--gold-gradient); color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer;">AGREGAR NOTA</button>
+            </div>
+        </div>`;
+    document.getElementById('btnAgregarNota').onclick = async () => {
+        const btn = document.getElementById('btnAgregarNota');
+        const texto = document.getElementById('notaTexto').value.trim();
+        const foto = document.getElementById('notaFoto').files[0] || null;
+        if (!texto && !foto) { alert('Escribe una nota o elige la foto del después.'); return; }
+        if (foto && foto.size > 50 * 1024 * 1024) { alert('La foto pesa más de 50 MB.'); return; }
+        btn.disabled = true; btn.textContent = '⌛ GUARDANDO…';
+        try {
+            await agregarNota(ficha.consecutivo, texto, foto, ficha.id_cliente, localStorage.getItem('julie_user_name') || '');
+            await pintarNotas(ficha);
+        } catch (e) {
+            console.error(e);
+            alert('No se pudo guardar la nota: ' + (e.message || '') + (/sin permiso/.test(e.message || '') ? '\nLa tablet solo puede anotar fichas de HOY de su sede.' : ''));
+            btn.disabled = false; btn.textContent = 'AGREGAR NOTA';
+        }
+    };
+}
+// Para el PDF: notas con enlace de foto
+window.cargarNotasPdf = async (folio) => { try { return await fetchNotas(folio); } catch (e) { return []; } };
 
 
 window.triggerQuickHistory = () => {
@@ -1110,8 +1164,8 @@ if (saveBtn) saveBtn.addEventListener('click', async () => {
 
     const fileA = document.getElementById('fotoAntesInput')?.files[0];
     const fileD = document.getElementById('fotoDespuesInput')?.files[0];
-    if (!fileA || !fileD) {
-        alert('⚠️ FALTAN FOTOS: Debes seleccionar la foto del ANTES y la del DESPUÉS.');
+    if (!fileA) {
+        alert('⚠️ FALTA LA FOTO DEL ANTES. (La del DESPUÉS se puede agregar al terminar, desde "Fichas de hoy".)');
         return;
     }
 
@@ -1135,6 +1189,10 @@ if (saveBtn) saveBtn.addEventListener('click', async () => {
         const cleanData = Object.fromEntries(formData.entries());
         cleanData.id_cliente = window.__idCliente; // el servidor devuelve la misma ficha si este envío se repite
         delete cleanData.consecutivo;
+        // Técnica: Completa / Mixta (obligatorio) + productos y notas (opcional) en el mismo campo
+        const tecTipo = document.getElementById('tecnicaInput')?.value || '';
+        const tecNotas = (cleanData.tecnica_utilizada || '').trim();
+        cleanData.tecnica_utilizada = [tecTipo ? `Técnica ${tecTipo}` : '', tecNotas].filter(Boolean).join(' — ');
         
         // --- INTEGRACIÓN CRM & MARKETING ---
         const marketing = getMarketingContext();
@@ -1149,7 +1207,7 @@ if (saveBtn) saveBtn.addEventListener('click', async () => {
 
         // Obligatorias
         uploadTasks.push(uploadImg(fileA, 'antes', cons).then(url => cleanData.foto_antes_url = url));
-        uploadTasks.push(uploadImg(fileD, 'despues', cons).then(url => cleanData.foto_despues_url = url));
+        if (fileD) uploadTasks.push(uploadImg(fileD, 'despues', cons).then(url => cleanData.foto_despues_url = url));
 
         // Opcionales Diagnóstico
         const fDiag = document.getElementById('fotoObsDiagInput')?.files[0];

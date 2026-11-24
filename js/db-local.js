@@ -70,6 +70,12 @@ export const localApi = {
     async fetchSyncDrive() { return (await fichas()).slice().reverse().slice(0, 200).map(r => ({ consecutivo: r.consecutivo, sede: r.sede, created_at: r.created_at, drive_sync_estado: 'modo_prueba', drive_sync_intentos: 0, drive_sync_error: null })); },
     async fetchNovedades() { return (await fichas()).slice().reverse().slice(0, 300).map(r => ({ consecutivo: r.consecutivo, nombre_completo: r.nombre_completo, telefono: r.telefono, email: r.email, edad: r.edad, autoriza_marketing: !!r.autoriza_marketing, autoriza_publicidad: !!r.autoriza_publicidad })); },
     async fetchNextID() { const f = await fichas(); const max = f.reduce((m, r) => Math.max(m, parseInt(r.consecutivo, 10) || 0), 0); return max + 1; },
+    async fetchNotas(folio) { return (await kvGet('notas_' + folio, [])); },
+    async agregarNota(folio, texto, archivo, autor) {
+        const foto = archivo ? await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(archivo); }) : null;
+        const n = await kvGet('notas_' + folio, []); n.push({ creado_en: new Date().toISOString(), autor_nombre: autor || null, texto: texto || null, foto_url: foto, foto });
+        await kvSet('notas_' + folio, n); return { creado_en: n[n.length - 1].creado_en };
+    },
     fetchStylists: async () => stylists(),
     fetchStylistsSecure: async () => stylists(),
     loginUserSecure: async () => ({ role: 'admin', nombre: 'Modo abierto' }),

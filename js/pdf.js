@@ -125,17 +125,27 @@ export async function generatePDF() {
 
         // --- CLIENTE BOX ---
         doc.setFillColor(...colors.lightGray);
-        doc.roundedRect(15, y, pageWidth - 30, 28, 2, 2, 'F');
+        // Menor de edad: datos del tutor (ficha guardada o en curso)
+        const tutorTxt = isMinor ? [
+            (ficha && ficha.nombre_tutor) || document.getElementById('tutorNameInput')?.value || (getVal('tutor_legal') !== '---' ? getVal('tutor_legal') : ''),
+            (ficha && ficha.documento_tutor) || document.getElementById('tutorDocInput')?.value || '',
+            (ficha && ficha.parentesco_tutor) || document.getElementById('tutorParentescoInput')?.value || ''
+        ].filter(Boolean).join(' · ') : '';
+        const altoCaja = tutorTxt ? 36 : 32;
+        doc.roundedRect(15, y, pageWidth - 30, altoCaja, 2, 2, 'F');
         doc.setFontSize(7); doc.setFont('helvetica', 'bold'); doc.setTextColor(...colors.gold);
         doc.text('CLIENTE', 20, y + 6);
+        doc.text(String(getVal('tipo_cliente') !== '---' ? getVal('tipo_cliente') : 'Nueva').toUpperCase(), pageWidth - 20, y + 6, { align: 'right' });
         doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(...colors.dark);
         doc.text(getVal('nombre_completo'), 20, y + 13);
         doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(...colors.gray);
-        doc.text(`${getVal('tipo_documento')}: ${getVal('numero_documento')}  |  TEL: ${getVal('telefono')}  |  EDAD: ${getVal('edad')} AÑOS`, 20, y + 18);
+        doc.text(`${getVal('tipo_documento')}: ${getVal('numero_documento')}  |  TEL: ${getVal('telefono')}  |  EDAD: ${getVal('edad')} AÑOS  |  GÉNERO: ${getVal('genero')}`, 20, y + 18);
         doc.text(`EMAIL: ${getVal('email')}  |  SEDE: ${getVal('sede')}`, 20, y + 22);
         doc.text(`ORIGEN: ${getVal('como_nos_conociste')}  |  ESTILISTA: ${getVal('estilista_responsable')}`, 20, y + 26);
+        doc.text(`FECHA: ${getVal('fecha_diligenciamiento')}`, 20, y + 30);
+        if (tutorTxt) doc.text(`TUTOR LEGAL (MENOR DE EDAD): ${tutorTxt}`, 20, y + 34);
 
-        y += 32;
+        y += altoCaja + 4;
 
         // --- SECCIÓN 1: DIAGNÓSTICO ---
         drawSectionHeader('1. Diagnóstico Técnico de Fibra');
@@ -169,6 +179,8 @@ export async function generatePDF() {
 
         y += drawField('Procesos Químicos', getVal('procesos_quimicos'), col1, pageWidth - 40);
         y += drawField('Terapias Capilares', getVal('terapias_capilares'), col1, pageWidth - 40);
+        const obsCarac = getVal('observaciones_caracteristicas');
+        if (obsCarac !== '---') y += drawField('Observaciones Características', obsCarac, col1, pageWidth - 40);
 
         // --- SECCIÓN 3: CUERO CABELLUDO ---
         drawSectionHeader('3. Cuero Cabelludo');
@@ -262,6 +274,12 @@ export async function generatePDF() {
             doc.setFontSize(8); doc.setFont('helvetica', 'italic'); doc.setTextColor(...colors.gray);
             doc.text('Sin fotos registradas en esta ficha.', 20, y); y += 8;
         }
+        // El video no cabe en un PDF: se deja constancia de que existe y dónde se ve
+        const hayVideo = (ficha && ficha.video_url && ficha.video_url !== 'sin-foto') || !!document.getElementById('videoInput')?.files?.[0];
+        if (hayVideo) {
+            doc.setFontSize(8); doc.setFont('helvetica', 'italic'); doc.setTextColor(...colors.gray);
+            doc.text('Esta ficha tiene VIDEO de evidencia (se ve en la app JulieFicha, Historial > folio).', 20, y); y += 7;
+        }
         const celdaW = (pageWidth - 40) / 2, celdaH = 58; // 3 filas por página
         for (let i = 0; i < fotos.length; i += 2) {
             checkSpace(celdaH + 10);
@@ -277,6 +295,30 @@ export async function generatePDF() {
                 try { doc.addImage(fo.data, 'JPEG', xi, yi, d.w, d.h); } catch (e) {}
             });
             y += celdaH + 10;
+        }
+
+        // --- NOTAS ADICIONALES (agregadas después de cerrar la ficha; cada una con su hora) ---
+        const notas = (ficha && window.cargarNotasPdf) ? await window.cargarNotasPdf(getVal('consecutivo')) : [];
+        if (notas.length) {
+            drawSectionHeader('Notas adicionales (posteriores al cierre de la ficha)');
+            for (const n of notas) {
+                const hora = new Date(n.creado_en).toLocaleString('es-CO', { timeZone: 'America/Bogota', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+                const lineas = n.texto ? doc.splitTextToSize(n.texto, pageWidth - 40) : [];
+                const fo = n.foto ? await fotoParaPdf(n.foto) : null;
+                const dFo = fo ? encajar(fo.w, fo.h, (pageWidth - 40) / 2, 70) : null;
+                checkSpace(10 + lineas.length * 4.2 + (dFo ? dFo.h + 6 : 0));
+                doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...colors.gold);
+                doc.text(`${hora}${n.autor_nombre ? ' · ' + n.autor_nombre : ''}`, 20, y); y += 4.5;
+                doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(...colors.dark);
+                if (lineas.length) { doc.text(lineas, 20, y); y += lineas.length * 4.2; }
+                if (fo) {
+                    doc.setDrawColor(...colors.gold); doc.setLineWidth(0.4);
+                    doc.rect(19.5, y + 0.5, dFo.w + 1, dFo.h + 1);
+                    try { doc.addImage(fo.data, 'JPEG', 20, y + 1, dFo.w, dFo.h); } catch (e) {}
+                    y += dFo.h + 5;
+                }
+                y += 4;
+            }
         }
 
         // --- SECCIÓN 6: CONSENTIMIENTO INFORMADO ---
