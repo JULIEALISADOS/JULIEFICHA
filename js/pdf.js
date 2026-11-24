@@ -21,7 +21,7 @@ export async function generatePDF() {
         };
 
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+        const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
         const pageWidth = doc.internal.pageSize.getWidth();
         let y = 0;
 
@@ -80,14 +80,33 @@ export async function generatePDF() {
             img.onerror = () => resolve(null);
             img.src = url;
         });
+        // Foto lista para el PDF: reducida (max 1200 px) y en JPEG para que el archivo no pese; conserva la proporcion.
+        const fotoParaPdf = async (url) => {
+            const img = await loadImg(url);
+            if (!img || !img.naturalWidth) return null;
+            try {
+                const k = Math.min(1, 1200 / Math.max(img.naturalWidth, img.naturalHeight));
+                const c = document.createElement('canvas');
+                c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+                const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+                ctx.drawImage(img, 0, 0, c.width, c.height);
+                return { data: c.toDataURL('image/jpeg', 0.82), w: c.width, h: c.height };
+            } catch (e) { return null; } // imagen bloqueada por el navegador: se omite, el PDF sigue
+        };
+        // Encaja una imagen en un recuadro sin deformarla (centrada)
+        const encajar = (wImg, hImg, wMax, hMax) => { const k = Math.min(wMax / wImg, hMax / hImg); return { w: wImg * k, h: hImg * k }; };
+        // Prueba guardada del consentimiento (ficha ya guardada) o null (ficha en curso)
+        const ficha = window.isLocked ? (window.lastViewedFicha || null) : null;
+        let evid = null;
+        try { const raw = ficha ? ficha.consent_evidencia : f.querySelector('[name="consent_evidencia"]')?.value; evid = typeof raw === 'string' ? JSON.parse(raw || 'null') : (raw || null); } catch (e) { evid = null; }
 
         // --- HEADER ---
         doc.setFillColor(...colors.gold);
         doc.rect(0, 0, pageWidth, 3, 'F');
         y = 12;
 
-        const logoImg = await loadImg('logo.png');
-        if (logoImg) doc.addImage(logoImg, 'PNG', 15, y - 3, 40, 15);
+        const logoImg = await fotoParaPdf('logo.png'); // logo reducido (antes pesaba ~2 MB dentro del PDF)
+        if (logoImg) { const d = encajar(logoImg.w, logoImg.h, 40, 15); doc.addImage(logoImg.data, 'JPEG', 15, y - 3, d.w, d.h); }
 
         doc.setFontSize(14);
         doc.setFont('helvetica', 'bold');
@@ -197,9 +216,9 @@ export async function generatePDF() {
         const elasticidad = getVal('elasticidad');
         const piel = getVal('piel_cabelluda');
         
-        if (porosidad === 'Alta') reco += "MASCARILLA ORO LÍQUIDO (Jojoba + Keratina) o R.C.P Profesional. ";
+        if (porosidad === 'Alta') reco += "MASCARILLA ORO LÍQUIDO o R.C.P Profesional. ";
         if (elasticidad === 'Baja') reco += "REPOSICIÓN DE AMINOÁCIDOS y AMPOLLA S.O.S. ";
-        if (piel === 'Seca' || piel === 'Grasa') reco += "SHAMPOO EXTRACTOS NATURALES (12 Extractos). ";
+        if (/^(Sec|Gras)/i.test(piel)) reco += "SHAMPOO EXTRACTOS NATURALES. "; // la ficha guarda "Seco"/"Graso" (antes nunca coincidia)
         
         // Recomendación por defecto si no hay alertas graves
         if (reco === "Para mantener tu resultado impecable, recomendamos: ") {
@@ -210,7 +229,7 @@ export async function generatePDF() {
         
         doc.text(doc.splitTextToSize(reco, pageWidth - 40), 20, y + 12);
         doc.setFontSize(6); doc.setFont('helvetica', 'italic');
-        doc.text('🛒 Pide tus productos originales Julie Alisados al WhatsApp: 3043588180 (Envío Nacional)', 20, y + 21);
+        doc.text('Pide tus productos originales Julie Alisados al WhatsApp 304 358 8180 (envío nacional).', 20, y + 21);
         y += 30;
 
         // --- ADVERTENCIA LEGAL (SI APLICA) ---
@@ -230,29 +249,35 @@ export async function generatePDF() {
             y += 22;
         }
 
-        // --- SECCIÓN 5: EVIDENCIA FOTOGRÁFICA ---
+        // --- SECCIÓN 5: EVIDENCIA FOTOGRÁFICA (todas las fotos, 2 por fila, sin deformar) ---
+        const fuentes = [
+            ['ANTES', '#previewAntes img'], ['DESPUÉS', '#previewDespues img'],
+            ['DIAGNÓSTICO', '#previewObsDiag img'], ['CARACTERÍSTICAS', '#previewObsCarac img'], ['CUERO CABELLUDO', '#previewObsCuero img']
+        ].map(([t, sel]) => [t, f.querySelector(sel)?.src]);
+        f.querySelectorAll('#previewExtra img').forEach((im, i) => fuentes.push([`ADICIONAL ${i + 1}`, im.src]));
+        const fotos = [];
+        for (const [t, u] of fuentes) { if (u) { const fo = await fotoParaPdf(u); if (fo) fotos.push({ t, ...fo }); } }
         drawSectionHeader('5. Evidencia Fotográfica');
-        const imgW = 80, imgH = 70;
-        checkSpace(imgH + 10);
-        const fotoA = await loadImg(f.querySelector('#previewAntes img')?.src);
-        const fotoD = await loadImg(f.querySelector('#previewDespues img')?.src);
-
-        doc.setFontSize(7); doc.setFont('helvetica', 'bold'); doc.setTextColor(...colors.gold);
-        doc.text('ANTES', 15 + imgW / 2, y, { align: 'center' });
-        doc.text('DESPUÉS', pageWidth - 15 - imgW / 2, y, { align: 'center' });
-        y += 3;
-
-        if (fotoA) {
-            doc.setDrawColor(...colors.gold); doc.setLineWidth(0.5);
-            doc.rect(14.5, y - 0.5, imgW + 1, imgH + 1);
-            doc.addImage(fotoA, 'JPEG', 15, y, imgW, imgH);
+        if (!fotos.length) {
+            doc.setFontSize(8); doc.setFont('helvetica', 'italic'); doc.setTextColor(...colors.gray);
+            doc.text('Sin fotos registradas en esta ficha.', 20, y); y += 8;
         }
-        if (fotoD) {
-            doc.setDrawColor(...colors.gold); doc.setLineWidth(0.5);
-            doc.rect(pageWidth - 15 - imgW - 0.5, y - 0.5, imgW + 1, imgH + 1);
-            doc.addImage(fotoD, 'JPEG', pageWidth - 15 - imgW, y, imgW, imgH);
+        const celdaW = (pageWidth - 40) / 2, celdaH = 58; // 3 filas por página
+        for (let i = 0; i < fotos.length; i += 2) {
+            checkSpace(celdaH + 10);
+            [fotos[i], fotos[i + 1]].forEach((fo, j) => {
+                if (!fo) return;
+                const x0 = 15 + j * (celdaW + 10);
+                doc.setFontSize(7); doc.setFont('helvetica', 'bold'); doc.setTextColor(...colors.gold);
+                doc.text(fo.t, x0 + celdaW / 2, y, { align: 'center' });
+                const d = encajar(fo.w, fo.h, celdaW, celdaH);
+                const xi = x0 + (celdaW - d.w) / 2, yi = y + 3;
+                doc.setDrawColor(...colors.gold); doc.setLineWidth(0.4);
+                doc.rect(xi - 0.5, yi - 0.5, d.w + 1, d.h + 1);
+                try { doc.addImage(fo.data, 'JPEG', xi, yi, d.w, d.h); } catch (e) {}
+            });
+            y += celdaH + 10;
         }
-        y += imgH + 10;
 
         // --- SECCIÓN 6: CONSENTIMIENTO INFORMADO ---
         doc.addPage(); // Forzar página nueva para que sea un "documento aparte"
@@ -266,20 +291,23 @@ export async function generatePDF() {
         y += drawField('Químicos Previos', getVal('consent_quimicos'), col1, 80);
         
         y += 5;
+        doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
+        const lineasConsent = doc.splitTextToSize("DECLARACIÓN Y ACEPTACIÓN: El alisado capilar consiste en la aplicación de productos químicos diseñados para modificar la estructura del cabello. El resultado depende de factores individuales como el tipo de cabello y su historial previo. Fui informada sobre los resultados esperados, los cuidados y el plan de trabajo propuesto. POLÍTICA DE GARANTÍA (Ley 1480 de 2011): dura 20 días calendario desde el procedimiento y cubre defectos del procedimiento o de los productos usados, en los locales de Julie Alisados. Para reclamar escribiré al WhatsApp 304 358 8180 dentro de ese plazo con un video del cabello recién lavado y secado, e indicaré los productos usados. Si se confirma una falla del procedimiento se corrige sin costo, no antes de 8 días del servicio original; si el problema se debe a no seguir los cuidados, el lavado en sede cuesta $20.000 y la garantía se cierra. Aplican las exclusiones de la política publicada en juliealisados.com/politica-garantia. Autorizo el tratamiento de mis datos personales según la Ley 1581 de 2012. He leído y comprendido toda la información y acepto voluntariamente el procedimiento.", pageWidth - 40);
+        const altoConsent = 14 + lineasConsent.length * 3.3; // el recuadro se ajusta al texto (antes quedaba medio vacío)
         doc.setFillColor(252, 252, 252);
         doc.setDrawColor(220, 220, 220);
-        doc.roundedRect(15, y, pageWidth - 30, 60, 2, 2, 'FD');
-        
-        doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(...colors.dark);
-        const consentText = "DECLARACIÓN Y ACEPTACIÓN: El alisado capilar consiste en la aplicación de productos químicos diseñados para modificar la estructura del cabello. El resultado depende de factores individuales como el tipo de cabello y su historial previo. Fui informada sobre los resultados esperados, los cuidados y el plan de trabajo propuesto. POLÍTICA DE GARANTÍA (Ley 1480 de 2011): dura 20 días calendario desde el procedimiento y cubre defectos del procedimiento o de los productos usados, en los locales de Julie Alisados. Para reclamar escribiré al WhatsApp 304 358 8180 dentro de ese plazo con un video del cabello recién lavado y secado, e indicaré los productos usados. Si se confirma una falla del procedimiento se corrige sin costo, no antes de 8 días del servicio original; si el problema se debe a no seguir los cuidados, el lavado en sede cuesta $20.000 y la garantía se cierra. Aplican las exclusiones de la política publicada en juliealisados.com/politica-garantia. Autorizo el tratamiento de mis datos personales según la Ley 1581 de 2012. He leído y comprendido toda la información y acepto voluntariamente el procedimiento.";
-        doc.text(doc.splitTextToSize(consentText, pageWidth - 40), 20, y + 8);
-        
-        // Autorización de fotos
-        const autPub = f.querySelector('[name="autoriza_publicidad"]')?.checked ? "SÍ AUTORIZA" : "NO AUTORIZA";
+        doc.roundedRect(15, y, pageWidth - 30, altoConsent, 2, 2, 'FD');
+
+        doc.setTextColor(...colors.dark);
+        doc.text(lineasConsent, 20, y + 6);
+
+        // Autorización de fotos (en ficha guardada: la prueba guardada)
+        const pubOk = (ficha && evid?.aceptados && 'fotos_publicidad' in evid.aceptados) ? !!evid.aceptados.fotos_publicidad : !!f.querySelector('[name="autoriza_publicidad"]')?.checked;
+        const autPub = pubOk ? "SÍ AUTORIZA" : "NO AUTORIZA";
         doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...colors.gold);
-        doc.text(`AUTORIZACIÓN USO PUBLICITARIO DE IMAGEN: ${autPub}`, 20, y + 52);
-        
-        y += 85;
+        doc.text(`AUTORIZACIÓN USO PUBLICITARIO DE IMAGEN: ${autPub}`, 20, y + altoConsent - 4);
+
+        y += altoConsent + 12;
 
         // --- SECCIÓN 7: FIRMAS DE ACEPTACIÓN ---
         // Obtener firmas
@@ -306,22 +334,31 @@ export async function generatePDF() {
                 doc.text(printedName.toUpperCase(), x + 30, yPos + 8, { align: 'center' });
             }
             if (src && src.startsWith('data:image')) {
-                try { doc.addImage(src, 'PNG', x + 10, yPos - 22, 40, 22); } catch (e) {}
+                try {
+                    const p = doc.getImageProperties(src); const d = encajar(p.width, p.height, 56, 22);
+                    doc.addImage(src, 'PNG', x + 30 - d.w / 2, yPos - 1 - d.h, d.w, d.h);
+                } catch (e) {}
             }
         };
 
-        // Firma Cliente y Técnico en una sola fila para ahorrar espacio o mejor disposición
+        // Firma Cliente y Técnico en una sola fila
         drawSig(sigC, 'FIRMA DE CONFORMIDAD CLIENTE', getVal('nombre_completo'), 15, y + 25);
         drawSig(sigT, 'FIRMA TÉCNICO RESPONSABLE', getVal('estilista_responsable'), pageWidth - 75, y + 25);
-        
+
         if (isMinor) {
             y += 40;
-            drawSig(sigM, 'FIRMA TUTOR LEGAL / RESPONSABLE', getVal('nombre_tutor') || 'Responsable Menor', 15, y + 25);
+            const nomTutor = (ficha && ficha.nombre_tutor) || document.getElementById('tutorNameInput')?.value || getVal('tutor_legal');
+            drawSig(sigM, 'FIRMA TUTOR LEGAL / RESPONSABLE', nomTutor && nomTutor !== '---' ? nomTutor : 'Responsable del menor', 15, y + 25);
         }
+        y += 38;
 
-        // Autorizaciones separadas (ficha digital 18-nov-2026)
+        // Autorizaciones separadas (ficha digital 18-nov-2026). En una ficha guardada se leen de la PRUEBA guardada, no de la pantalla.
         {
-            const chk = (id) => document.getElementById(id)?.checked ? 'SI' : 'NO';
+            const mapa = { authCheckbox: 'consentimiento_servicio', planTrabajoCheckbox: 'plan_trabajo', datosCheckbox: 'datos_personales_y_salud', acuerdoFirmaCheckbox: 'acuerdo_firma_electronica', marketingCheckbox: 'marketing_whatsapp_correo', photoPublicCheckbox: 'fotos_publicidad' };
+            const chk = (id) => {
+                if (ficha && evid?.aceptados && mapa[id] in evid.aceptados) return evid.aceptados[mapa[id]] ? 'SI' : 'NO';
+                return document.getElementById(id)?.checked ? 'SI' : 'NO';
+            };
             checkSpace(40);
             drawSectionHeader('Autorizaciones de la clienta');
             doc.setFontSize(8);
@@ -330,9 +367,9 @@ export async function generatePDF() {
             [
                 `Consentimiento informado del servicio: ${chk('authCheckbox')}`,
                 `Plan de trabajo: ${chk('planTrabajoCheckbox')}`,
-                (() => { let ev = null; try { ev = JSON.parse(f.querySelector('[name="consent_evidencia"]')?.value || 'null'); } catch (e) { ev = null; } const vence = ev?.aceptados?.garantia_vence_iso ? new Date(ev.aceptados.garantia_vence_iso) : sumarDias(new Date(), POLITICA_GARANTIA.diasVigencia); const cuid = ev?.aceptados?.cuidados_entregados ?? document.getElementById('cuidadosCheckbox')?.checked; return `Garantia de ${POLITICA_GARANTIA.diasVigencia} dias calendario, vigente hasta: ${fmtFechaLarga(vence)} | Indicaciones de cuidado entregadas: ${cuid ? 'SI' : 'NO'}`; })(),
-                `Acuerdo de firma electronica (pantalla + codigo): ${chk('acuerdoFirmaCheckbox')}`,
-                (() => { try { const e = JSON.parse(f.querySelector('[name="otp_evidencia"]')?.value || 'null'); return e ? `Codigo confirmado por ${e.canal} (${e.destino_enmascarado}) el ${new Date(e.verificado_iso).toLocaleString('es-CO')}` : 'Codigo de confirmacion: NO registrado'; } catch { return 'Codigo de confirmacion: NO registrado'; } })(),
+                (() => { let ev = null; try { ev = JSON.parse(f.querySelector('[name="consent_evidencia"]')?.value || 'null'); } catch (e) { ev = null; } const vence = ev?.aceptados?.garantia_vence_iso ? new Date(ev.aceptados.garantia_vence_iso) : sumarDias(new Date(), POLITICA_GARANTIA.diasVigencia); const cuid = (evid?.aceptados?.cuidados_entregados ?? ev?.aceptados?.cuidados_entregados) ?? document.getElementById('cuidadosCheckbox')?.checked; return `Garantía de ${POLITICA_GARANTIA.diasVigencia} días calendario, vigente hasta: ${fmtFechaLarga(vence)} | Indicaciones de cuidado entregadas: ${cuid ? 'SI' : 'NO'}`; })(),
+                `Acuerdo de firma electrónica: ${chk('acuerdoFirmaCheckbox')}`,
+                (() => { try { const e = (ficha && evid?.confirmacion_codigo) || JSON.parse(f.querySelector('[name="otp_evidencia"]')?.value || 'null'); return e && e.canal ? `Código confirmado por ${e.canal} (${e.destino_enmascarado}) el ${new Date(e.verificado_iso).toLocaleString('es-CO')}` : 'Código de confirmación: no se usó (firma en pantalla)'; } catch { return 'Código de confirmación: no se usó (firma en pantalla)'; } })(),
                 `Tratamiento de datos personales y de salud capilar (Ley 1581): ${chk('datosCheckbox')}`,
                 `Recibir novedades por WhatsApp o correo (opcional): ${isMinor ? 'NO' : chk('marketingCheckbox')}`,
                 `Uso de fotos o videos en publicidad (opcional): ${isMinor ? 'NO' : chk('photoPublicCheckbox')}`
@@ -340,38 +377,44 @@ export async function generatePDF() {
             y += 4;
         }
 
-        // Footer
-        doc.setFillColor(...colors.gold);
-        doc.rect(0, doc.internal.pageSize.getHeight() - 3, pageWidth, 3, 'F');
-
-                // --- SELLO FORENSE DIGITAL DE VALIDEZ LEGAL (Ley 527 de 1999 y Decreto 2364 de 2012) ---
-        const now = new Date();
-        const dateStr = now.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
-        const timeStr = now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-        const timestampFull = `${dateStr} ${timeStr} (Hora Legal Colombia - UTC-5)`;
+        // --- REGISTRO DE FIRMA ELECTRÓNICA (Ley 527 de 1999) ---
+        // La hora es la de la FIRMA guardada (no la de imprimir el PDF).
+        const fmtHora = (d) => `${d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Bogota' })} ${d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true, timeZone: 'America/Bogota' })}`;
+        const firmadoIso = evid?.fecha_hora_iso || ficha?.created_at || null;
+        const timestampFull = firmadoIso ? `${fmtHora(new Date(firmadoIso))} (hora de Colombia)` : 'Ficha aún sin guardar (borrador)';
         const sedeCfg = sedePorNombre(getVal('sede'));
         const sedeLegal = sedeCfg ? `Sede ${sedeCfg.nombre} (${sedeCfg.direccion})` : `Sede ${getVal('sede')}`;
         const folioLegal = `JA-FOLIO-#${getVal('consecutivo')}`;
 
-        const stampBoxY = isMinor ? y + 42 : y + 36;
-        if (stampBoxY + 28 <= doc.internal.pageSize.getHeight() - 5) {
-            doc.setFillColor(250, 248, 242);
-            doc.setDrawColor(212, 175, 55);
-            doc.setLineWidth(0.4);
-            doc.roundedRect(15, stampBoxY, pageWidth - 30, 25, 2, 2, 'FD');
+        checkSpace(34);
+        const stampBoxY = y + 2;
+        doc.setFillColor(250, 248, 242);
+        doc.setDrawColor(212, 175, 55);
+        doc.setLineWidth(0.4);
+        doc.roundedRect(15, stampBoxY, pageWidth - 30, 29, 2, 2, 'FD');
+        doc.setFontSize(6.8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(166, 134, 18);
+        doc.text('REGISTRO DE FIRMA ELECTRÓNICA', 20, stampBoxY + 5);
+        doc.setFontSize(6.2);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(60, 60, 60);
+        doc.text(`• Identificador único: ${folioLegal}  |  Firmado: ${timestampFull}`, 20, stampBoxY + 9.5);
+        doc.text(`• Sede de emisión y custodia: ${sedeLegal}`, 20, stampBoxY + 13.5);
+        doc.text(`• Texto aceptado: versión ${evid?.version_texto || '---'}  |  Huella SHA-256: ${(evid?.huella_texto_sha256 || '---').slice(0, 32)}${evid?.huella_texto_sha256 ? '…' : ''}`, 20, stampBoxY + 17.5);
+        doc.text('• Documento electrónico firmado en pantalla (Ley 527 de 1999). Datos tratados conforme a la Ley 1581 de 2012.', 20, stampBoxY + 21.5);
+        doc.text(`• PDF generado: ${fmtHora(new Date())}. Copia fiel del registro guardado en el sistema de Julie Alisados S.A.S.`, 20, stampBoxY + 25.5);
 
-            doc.setFontSize(6.8);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(166, 134, 18);
-            doc.text('REGISTRO DE FIRMA ELECTRÓNICA', 20, stampBoxY + 5);
-
-            doc.setFontSize(6.2);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor(60, 60, 60);
-            doc.text(`• Identificador Único: ${folioLegal}  |  Estampa Cronológica: ${timestampFull}`, 20, stampBoxY + 9.5);
-            doc.text(`• Sede de Emisión y Custodia: ${sedeLegal}`, 20, stampBoxY + 13.5);
-            doc.text('• Documento electrónico firmado en pantalla (Ley 527 de 1999).', 20, stampBoxY + 17.5);
-            doc.text('  Datos personales tratados conforme a la Ley 1581 de 2012 (Habeas Data).', 20, stampBoxY + 21.5);
+        // Pie en TODAS las páginas: folio, página X de Y y aviso de confidencialidad
+        const totalPag = doc.getNumberOfPages();
+        const altoPag = doc.internal.pageSize.getHeight();
+        for (let p = 1; p <= totalPag; p++) {
+            doc.setPage(p);
+            doc.setFillColor(...colors.gold);
+            doc.rect(0, altoPag - 3, pageWidth, 3, 'F');
+            doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...colors.gray);
+            doc.text(`Julie Alisados S.A.S. · Ficha #${getVal('consecutivo')} · Documento confidencial (datos personales y de salud capilar)`, 15, altoPag - 6);
+            doc.text(`Página ${p} de ${totalPag}`, pageWidth - 15, altoPag - 6, { align: 'right' });
         }
 
         const nombreArchivo = `Ficha_${getVal('nombre_completo').replace(/\s+/g, '_')}_${getVal('consecutivo')}.pdf`;

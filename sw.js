@@ -1,9 +1,9 @@
-const CACHE_NAME = 'julie-app-v18.6';
+const CACHE_NAME = 'julie-app-v18.7';
 // 19-nov: la instalacion ya no falla si falta UN archivo (antes addAll() cancelaba todo) y no recarga la pagina en medio de una ficha.
 const ASSETS = [
   'index.html',
   'style.css?v=9.2',
-  'js/config.js', 'js/db.js', 'js/db-local.js', 'js/otp.js', 'js/garantia.js', 'js/garantias-ui.js', 'js/historia-ui.js', 'js/pixel-propio.js', 'js/ui.js', 'js/signature.js', 'js/pdf.js', 'js/sanitize.js', 'js/app.js?v=10.1',
+  'js/config.js', 'js/db.js', 'js/db-local.js', 'js/otp.js', 'js/garantia.js', 'js/garantias-ui.js', 'js/historia-ui.js', 'js/pixel-propio.js', 'js/ui.js', 'js/signature.js', 'js/pdf.js', 'js/sanitize.js', 'js/app.js?v=10.2',
   'manifest.json',
   'logo.png',
   'guia_cabello_tecnico_completa_julie_es_1774539016850.png',
